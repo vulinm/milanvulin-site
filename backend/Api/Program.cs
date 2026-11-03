@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading.RateLimiting;
 
 // Moment this process started: used to measure how long a commit took to reach production.
 var startedAt = DateTimeOffset.UtcNow;
@@ -19,7 +20,26 @@ builder.Services.AddSingleton(new BuildInfo(
     StartedAt: startedAt));
 builder.Services.AddSingleton<DeployFeed>();
 
+// Local language model (optional): see ChatService. The client has no timeout because answers stream.
+builder.Services.AddHttpClient("llm", c => c.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddSingleton<ChatService>();
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Per visitor: Cloudflare puts the real address in this header (the API is only reachable through it).
+    o.AddPolicy("chat", ctx => RateLimitPartition.GetSlidingWindowLimiter(
+        ctx.Request.Headers["CF-Connecting-IP"].ToString() is { Length: > 0 } ip ? ip : "unknown",
+        _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 8,
+            Window = TimeSpan.FromMinutes(1),
+            SegmentsPerWindow = 4,
+            QueueLimit = 0,
+        }));
+});
+
 var app = builder.Build();
+app.UseRateLimiter();
 
 // Internal only: the web container forwards just /api/*, so this is never reachable from outside.
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
@@ -53,6 +73,29 @@ app.MapGet("/api/trace", (HttpContext ctx, BuildInfo info) =>
         startedAt = info.StartedAt,
     };
 });
+
+// Chat with the local model. Status says whether the feature is configured and the model answers.
+app.MapGet("/api/chat/status", async (ChatService chat, CancellationToken ct) => await chat.GetStatusAsync(ct));
+
+app.MapPost("/api/chat", async (HttpContext ctx, ChatRequest? request, ChatService chat, CancellationToken ct) =>
+{
+    if (!chat.Enabled) return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+    var problem = ChatService.Validate(request, out var history);
+    if (problem is not null) return Results.BadRequest(new { error = problem });
+
+    if (!chat.TryAcquire())
+        return Results.Json(new { error = "busy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    try
+    {
+        await chat.StreamAsync(ctx, history, ct);
+    }
+    finally
+    {
+        chat.Release();
+    }
+    return Results.Empty;
+}).RequireRateLimiting("chat");
 
 app.Run();
 

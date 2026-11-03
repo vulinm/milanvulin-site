@@ -1,0 +1,13 @@
+# Optional server overlay: joins the api to the shared network of the local language model.
+# Enable it only after the model service exists on the server: add it to COMPOSE_FILE in .env
+# (compose.yaml:compose.platform.yaml:compose.llm.yaml) and set LLM_URL and LLM_MODEL there.
+# Without it the chat panel simply stays hidden.
+services:
+  api:
+    networks:
+      app: {}
+      llm: {}
+networks:
+  llm:
+    external: true
+    name: stack_llm

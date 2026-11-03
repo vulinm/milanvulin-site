@@ -32,6 +32,69 @@ export const getVersion = () => get<Version>("/api/version");
 export const getRuns = async () => (await get<{ runs: Run[] }>("/api/deploys")).runs;
 export const getTrace = () => get<TraceData>("/api/trace");
 
+export type ChatStatus = { enabled: boolean; online: boolean; model: string | null };
+export type ChatMsg = { role: "user" | "assistant"; content: string };
+export type ChatDone = { model: string; ttftMs: number; tokens: number; tps: number };
+
+export const getChatStatus = () => get<ChatStatus>("/api/chat/status");
+
+export class ChatError extends Error {
+  status: number;
+  code: string;
+  constructor(status: number, code = "") {
+    super(code || `HTTP ${status}`);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+// Sends the conversation and reads the answer as it streams in (server-sent events over fetch).
+export async function streamChat(
+  messages: ChatMsg[],
+  onText: (piece: string) => void,
+  signal: AbortSignal,
+): Promise<ChatDone | null> {
+  const r = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  if (!r.ok || !r.body) {
+    let code = "";
+    try {
+      code = ((await r.json()) as { error?: string }).error ?? "";
+    } catch {
+      /* the body was empty or not JSON */
+    }
+    throw new ChatError(r.status, code);
+  }
+
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let done: ChatDone | null = null;
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    buffer += decoder.decode(chunk.value, { stream: true });
+    let end = buffer.indexOf("\n\n");
+    while (end >= 0) {
+      const event = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      end = buffer.indexOf("\n\n");
+      if (!event.startsWith("data: ")) continue;
+      const data = JSON.parse(event.slice(6)) as { t?: string; done?: boolean; error?: string } & Partial<ChatDone>;
+      if (data.error) throw new ChatError(0, data.error);
+      if (typeof data.t === "string") onText(data.t);
+      else if (data.done) {
+        done = { model: data.model ?? "", ttftMs: data.ttftMs ?? 0, tokens: data.tokens ?? 0, tps: data.tps ?? 0 };
+      }
+    }
+  }
+  return done;
+}
+
 export function fmtSeconds(s: number): string {
   const n = Math.round(s);
   return n < 60 ? `${n}s` : `${Math.floor(n / 60)}m ${n % 60}s`;
