@@ -1,3 +1,4 @@
+import { ThemeToggle } from "./components/ThemeToggle";
 import { useCallback, useEffect, useState } from "react";
 import { getChatStatus, type ChatStatus } from "./api";
 import { Architecture } from "./components/Architecture";
@@ -36,6 +37,7 @@ function App() {
           <a href="#ship">Ship it</a>
           <a href="#architecture">Architecture</a>
           <a href="#trace">Trace</a>
+          <ThemeToggle />
         </nav>
       </header>
 
