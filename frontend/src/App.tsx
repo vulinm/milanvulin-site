@@ -56,6 +56,7 @@ function App() {
               </a>
             ))}
           </p>
+          <p className="built-on">{profile.builtOn}</p>
         </section>
 
         {chat?.enabled && (

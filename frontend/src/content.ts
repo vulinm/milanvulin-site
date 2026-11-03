@@ -4,6 +4,7 @@ export const profile = {
   intro:
     "Formerly a software engineer on Microsoft's Azure networking team. I build and run the whole path from commit to production. " +
     "This site is served from a home server through a pull-based pipeline I built, and every panel below shows that pipeline working.",
+  builtOn: "This app is built on top of ownforge-skeleton.",
   skills: [
     ".NET and C#",
     "Docker and Compose",
