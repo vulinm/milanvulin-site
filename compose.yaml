@@ -20,6 +20,9 @@ services:
     security_opt: ["no-new-privileges:true"]
     environment:
       GITHUB_REPO: ${GITHUB_REPO:-vulinm/milanvulin-site}
+      # Local language model for the chat panel. Both empty means the chat is switched off.
+      LLM_URL: ${LLM_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
     networks: [app]
 networks:
   app: {}

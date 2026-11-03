@@ -2,5 +2,6 @@
 services:
   web:
     ports: ["8080:80"]
-  db:
-    ports: ["127.0.0.1:5432:5432"]
+  api:
+    # Lets the API reach an Ollama running on the host: set LLM_URL=http://host.docker.internal:11434 in .env.
+    extra_hosts: ["host.docker.internal:host-gateway"]

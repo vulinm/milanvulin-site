@@ -1,4 +1,7 @@
+import { useCallback, useEffect, useState } from "react";
+import { getChatStatus, type ChatStatus } from "./api";
 import { Architecture } from "./components/Architecture";
+import { Chat } from "./components/Chat";
 import { ShipIt } from "./components/ShipIt";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
@@ -15,11 +18,21 @@ function Section(props: { id: string; n: string; title: string; lead: string; ch
 }
 
 function App() {
+  // The chat section only exists when the server has a local model configured.
+  const [chat, setChat] = useState<ChatStatus | null>(null);
+  const checkChat = useCallback(() => {
+    getChatStatus()
+      .then(setChat)
+      .catch(() => setChat(null));
+  }, []);
+  useEffect(checkChat, [checkChat]);
+
   return (
     <>
       <header className="top">
         <span className="mono brand">milanvulin.com</span>
         <nav>
+          {chat?.enabled && <a href="#chat">Ask AI</a>}
           <a href="#ship">Ship it</a>
           <a href="#architecture">Architecture</a>
           <a href="#trace">Trace</a>
@@ -44,6 +57,18 @@ function App() {
             ))}
           </p>
         </section>
+
+        {chat?.enabled && (
+          <Section
+            id="chat"
+            n="00"
+            title="Ask my AI"
+            lead="A small open model running on the RTX 3060 in my home server, not a hosted API. It knows my public profile and how this site is built, and each answer shows how fast the GPU produced it."
+          >
+            <Chat status={chat} onRecheck={checkChat} />
+            <p className="note">It can be wrong. This site does not store your messages.</p>
+          </Section>
+        )}
 
         <Section
           id="ship"
