@@ -115,7 +115,7 @@ function Tile({ label, value }: { label: string; value: string }) {
 }
 
 function Timeline({ ci, pickup, total, t }: { ci: number; pickup: number; total: number; t: number | null }) {
-  // Widths are proportional, with a floor so a short stage stays readable.
+  // Widths are proportional, with a floor so a short stage stays visible.
   const floor = total * 0.15;
   const shown = [Math.max(ci, floor), Math.max(pickup, floor)];
   const sum = shown[0] + shown[1];
@@ -129,20 +129,26 @@ function Timeline({ ci, pickup, total, t }: { ci: number; pickup: number; total:
     return Math.min(1, Math.max(0, (t - start) / dur));
   };
 
+  // Labels live in a legend below the bar, so a narrow segment can never make them overlap.
   return (
-    <svg className="timeline" viewBox="0 0 640 86" role="img" aria-label="Deploy timeline: build and publish, then server pulls and restarts">
-      {stages.map((s) => (
-        <g key={s.label} transform={`translate(${20 + s.x} 0)`}>
-          <rect className={`seg ${s.cls}`} x={0} y={30} width={s.w - 2} height={26} rx={4} />
-          <rect className={`fill ${s.cls}`} x={0} y={30} width={Math.max(0, (s.w - 2) * fill(s.start, s.dur))} height={26} rx={4} />
-          <text className="lbl" x={0} y={20}>
-            {s.label}
-          </text>
-          <text className="lbl muted" x={0} y={74}>
-            {fmtSeconds(s.dur)}
-          </text>
-        </g>
-      ))}
-    </svg>
+    <div className="timeline-wrap">
+      <svg className="timeline" viewBox="0 0 640 40" role="img" aria-label="Deploy timeline: build and publish, then server pulls and restarts">
+        {stages.map((s) => (
+          <g key={s.label} transform={`translate(${20 + s.x} 0)`}>
+            <rect className={`seg ${s.cls}`} x={0} y={8} width={s.w - 2} height={26} rx={4} />
+            <rect className={`fill ${s.cls}`} x={0} y={8} width={Math.max(0, (s.w - 2) * fill(s.start, s.dur))} height={26} rx={4} />
+          </g>
+        ))}
+      </svg>
+      <ul className="legend">
+        {stages.map((s) => (
+          <li key={s.label}>
+            <span className={`swatch ${s.cls}`} />
+            <span>{s.label}</span>
+            <span className="muted mono">{fmtSeconds(s.dur)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
