@@ -1,0 +1,25 @@
+name: ${APP_NAME:?}
+
+# One network (`app`) joins web and api. No database: the site only reads public data.
+services:
+  web:
+    image: ${WEB_IMAGE:-${APP_NAME:?}-web}:${WEB_TAG:-main}
+    build: ./frontend
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [app]
+  api:
+    image: ${API_IMAGE:-${APP_NAME:?}-api}:${API_TAG:-main}
+    build:
+      context: ./backend/Api
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      GITHUB_REPO: ${GITHUB_REPO:-vulinm/milanvulin-site}
+    networks: [app]
+networks:
+  app: {}

@@ -1,0 +1,6 @@
+# Local development only (merged automatically by `docker compose up`).
+services:
+  web:
+    ports: ["8080:80"]
+  db:
+    ports: ["127.0.0.1:5432:5432"]

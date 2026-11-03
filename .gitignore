@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+
+# Node / React (Vite)
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+coverage/
+
+# Secrets and local config (keep .env.example tracked)
+.env
+.env.*
+!.env.example
+
+# Local data and logs
+*.log
+pgdata/
+*.dump
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

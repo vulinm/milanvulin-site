@@ -1,0 +1,11 @@
+# Server overlay: only `web` joins the shared proxy network. api and db never do.
+services:
+  web:
+    networks:
+      app: {}
+      proxy:
+        aliases: ["${APP_NAME:?}-web"]
+networks:
+  proxy:
+    external: true
+    name: stack_proxy
