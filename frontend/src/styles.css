@@ -143,6 +143,10 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
 @media (max-width: 40rem) {
   .runs li { grid-template-columns: 0.7rem 4rem 1fr auto; }
   .runs .when { display: none; }
+  /* Narrow screens: the menu goes under the site name instead of squeezing next to it. */
+  .top { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+  .top nav { flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+  .top nav a { white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
