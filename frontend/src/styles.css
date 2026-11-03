@@ -1,4 +1,22 @@
 :root {
+  /* Dark is the default for everyone; light is opt-in through the toggle (data-theme="light"). */
+  --bg: #12110f;
+  --fg: #ecebe8;
+  --muted: #9a958e;
+  --line: #2e2c28;
+  --panel: #1a1917;
+  --code: #1f1d1a;
+  --run: #4fd1c0;
+  --run-bg: #12332f;
+  --ship: #a99cf5;
+  --ship-bg: #272048;
+  --ok: #4ade80;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
   --bg: #fafaf9;
   --fg: #1c1917;
   --muted: #6b6762;
@@ -12,25 +30,7 @@
   --ok: #15803d;
   --bad: #b91c1c;
   --warn: #b45309;
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #12110f;
-    --fg: #ecebe8;
-    --muted: #9a958e;
-    --line: #2e2c28;
-    --panel: #1a1917;
-    --code: #1f1d1a;
-    --run: #4fd1c0;
-    --run-bg: #12332f;
-    --ship: #a99cf5;
-    --ship-bg: #272048;
-    --ok: #4ade80;
-    --bad: #f87171;
-    --warn: #fbbf24;
-  }
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -52,9 +52,15 @@ code { font-size: 0.9em; }
   max-width: 56rem; margin: 0 auto; padding: 1rem 1.25rem;
 }
 .brand { font-size: 0.85rem; color: var(--muted); }
-.top nav { display: flex; gap: 1.25rem; font-size: 0.9rem; }
+.top nav { display: flex; align-items: center; gap: 1.25rem; font-size: 0.9rem; }
 .top nav a { color: var(--fg); text-decoration: none; }
 .top nav a:hover { color: var(--run); }
+.theme-toggle {
+  font: inherit; font-size: 0.85rem; line-height: 1; color: var(--fg); cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 0.4rem 0.75rem;
+}
+.theme-toggle:hover { border-color: var(--run); color: var(--run); }
+.theme-toggle:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; }
 
 .page { max-width: 56rem; margin: 0 auto; padding: 0 1.25rem 3rem; }
 .hero { padding: 3rem 0 2rem; }
