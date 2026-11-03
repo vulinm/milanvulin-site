@@ -63,6 +63,7 @@ code { font-size: 0.9em; }
 .lead { color: var(--muted); max-width: 42rem; margin: 0 0 1rem; }
 .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0; margin: 1.25rem 0; }
 .chips li { font-family: var(--mono); font-size: 0.78rem; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); }
+.built-on { margin: 1rem 0 0; font-size: 0.85rem; color: var(--muted); }
 .links { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.92rem; margin: 0; }
 
 .section { padding: 2.5rem 0 0; border-top: 1px solid var(--line); margin-top: 2rem; }
