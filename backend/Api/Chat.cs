@@ -187,28 +187,45 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     }
 }
 
-// Only public facts belong here: the prompt is sent to the model with every question and the repository is public.
-// What the model knows about Milan lives in Profile.md next to this file; edit that file to change its knowledge.
+// The system prompt is sent to the model with every question. What the model knows about Milan comes from a profile
+// text, looked up in this order: a file on the server (so it can change without a rebuild), the Profile.md bundled
+// with the image (public, in the repository), and a short built-in fallback.
 public static class ChatPrompt
 {
     private const string Fallback =
         "Milan Vulin is a backend engineer with DevOps and networking depth, formerly on Microsoft's Azure networking team. " +
         "Details: github.com/vulinm.";
 
-    public static readonly string System = Build();
+    public static readonly string Profile;
+    public static readonly string ProfileSource;
+    public static readonly string System;
 
-    private static string Build()
+    static ChatPrompt()
     {
-        string profile;
-        try
+        (Profile, ProfileSource) = LoadProfile();
+        System = Intro + Profile + Rules;
+    }
+
+    private static (string Text, string Source) LoadProfile()
+    {
+        var serverFile = Environment.GetEnvironmentVariable("CHAT_PROFILE_FILE") is { Length: > 0 } custom
+            ? custom
+            : Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
+        var bundled = Path.Combine(AppContext.BaseDirectory, "Profile.md");
+
+        foreach (var (path, source) in new[] { (serverFile, "server file"), (bundled, "bundled file") })
         {
-            profile = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Profile.md")).Trim();
+            try
+            {
+                var text = File.ReadAllText(path).Trim();
+                if (text.Length > 0) return (text, source);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // Missing, unreadable, or a directory that Docker created for a bind mount: try the next source.
+            }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            profile = Fallback;
-        }
-        return Intro + profile + Rules;
+        return (Fallback, "built-in fallback");
     }
 
     private const string Intro = """

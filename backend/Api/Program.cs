@@ -97,6 +97,9 @@ app.MapPost("/api/chat", async (HttpContext ctx, ChatRequest? request, ChatServi
     return Results.Empty;
 }).RequireRateLimiting("chat");
 
+// Says in the log which profile text the chat model got, so an update can be verified.
+app.Logger.LogInformation("Chat profile: {Source}, {Chars} characters", ChatPrompt.ProfileSource, ChatPrompt.Profile.Length);
+
 app.Run();
 
 static string? ParseScheme(string? cfVisitor)
