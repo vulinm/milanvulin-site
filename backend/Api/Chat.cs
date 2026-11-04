@@ -10,7 +10,7 @@ public sealed record ChatRequest(List<ChatMessage>? Messages);
 public sealed record ChatStatus(bool Enabled, bool Online, string? Model);
 
 // Streams answers from a local model that speaks the OpenAI chat API (Ollama, llama.cpp server, ...).
-// The feature is off unless both LLM_URL and LLM_MODEL are set, so the site works without a GPU.
+// The feature is off unless LLM_URL and LLM_MODEL are set and the profile file exists, so the site works without a GPU.
 public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILogger<ChatService> log)
 {
     private const int MaxMessages = 8;
@@ -29,7 +29,8 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     private DateTimeOffset _checked = DateTimeOffset.MinValue;
     private bool _online;
 
-    public bool Enabled => _url is not null && _model is not null;
+    // Off unless the model is configured and the profile file exists on the server.
+    public bool Enabled => _url is not null && _model is not null && ChatPrompt.System is not null;
 
     public async Task<ChatStatus> GetStatusAsync(CancellationToken ct)
     {
@@ -95,7 +96,7 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
 
         var messages = new JsonArray
         {
-            new JsonObject { ["role"] = "system", ["content"] = ChatPrompt.System },
+            new JsonObject { ["role"] = "system", ["content"] = ChatPrompt.System ?? "" },
         };
         foreach (var m in history)
             messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
@@ -187,28 +188,30 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     }
 }
 
-// Only public facts belong here: the prompt is sent to the model with every question and the repository is public.
-// What the model knows about Milan lives in Profile.md next to this file; edit that file to change its knowledge.
+// The system prompt is sent to the model with every question. What the model knows about Milan comes only from a
+// profile file that lives on the server, at a fixed path: it is not part of this public repository and there is no
+// built-in copy. Without that file the chat stays switched off. The text is read once at startup, so after changing
+// the file the API must be restarted (a local script run over ssh does that, see docs/local-llm.md).
 public static class ChatPrompt
 {
-    private const string Fallback =
-        "Milan Vulin is a backend engineer with DevOps and networking depth, formerly on Microsoft's Azure networking team. " +
-        "Details: github.com/vulinm.";
+    public static readonly string ProfilePath = Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
 
-    public static readonly string System = Build();
+    public static readonly string? Profile = LoadProfile();
 
-    private static string Build()
+    public static readonly string? System = Profile is null ? null : Intro + Profile + Rules;
+
+    private static string? LoadProfile()
     {
-        string profile;
         try
         {
-            profile = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Profile.md")).Trim();
+            var text = File.ReadAllText(ProfilePath).Trim();
+            return text.Length > 0 ? text : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            profile = Fallback;
+            // Missing, unreadable, or a directory that Docker created for the bind mount.
+            return null;
         }
-        return Intro + profile + Rules;
     }
 
     private const string Intro = """

@@ -12,7 +12,7 @@ browser, then Cloudflare and the tunnel, Caddy, the web container (nginx, unbuff
 - Global: at most 2 answers generated at the same time; a third visitor gets a friendly "busy" message instead of a queue.
 - Size limits: 500 characters per question, 8 messages of history, 350 output tokens, 60 seconds per answer.
 - If a visitor closes the page, the request is cancelled and the GPU stops generating.
-- The system prompt contains only public facts and tells the model not to invent anything about Milan. What the model knows about Milan is in `backend/Api/Profile.md` (public, edit it like any other file); the rules around it are in `ChatPrompt` in `backend/Api/Chat.cs`. Messages are not stored or logged by the site.
+- The system prompt contains only public facts and tells the model not to invent anything about Milan. What the model knows about Milan is read at startup from `./profile/Profile.md` on the server (see "Updating what the model knows"; the file is not part of the repository and there is no built-in copy: without it the chat stays off); the rules around it are in `ChatPrompt` in `backend/Api/Chat.cs`. Messages are not stored or logged by the site.
 
 ## Server setup (once)
 1. NVIDIA driver on the host. `nvidia-smi` must show the RTX 3060. If it does not, install the recommended driver (for example `sudo ubuntu-drivers install`) and reboot.
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
     environment:
       OLLAMA_KEEP_ALIVE: "-1"       # keep the model in VRAM for good, so the first visitor after a pause does not wait for a reload
-      OLLAMA_CONTEXT_LENGTH: "8192" # the profile in the system prompt is about 1,300 tokens; leave room for the conversation
+      OLLAMA_CONTEXT_LENGTH: "4096" # enough for the profile (about 1,300 tokens) plus a short conversation; 8192 with two parallel answers was much slower on a 12 GB card
       OLLAMA_NUM_PARALLEL: "2"      # matches the API's limit of 2 parallel answers
       OLLAMA_MAX_LOADED_MODELS: "1"
     volumes: [ollama:/root/.ollama]
@@ -59,3 +59,10 @@ Models are configuration: pull a different one (`ollama pull <name>`), change `L
 
 ## Local development
 Run Ollama on your own machine, set `LLM_URL=http://host.docker.internal:11434` and `LLM_MODEL=<a model you pulled>` in `.env`, then `docker compose up --build`.
+
+## Updating what the model knows
+The profile text is read once when the API starts. On the server it is looked up as `/srv/apps/milanvulin-site/profile/Profile.md` (mounted read-only by `compose.llm.yaml`); the path is fixed (`/app/profile/Profile.md` inside the container). If the file is missing or empty the API logs a warning and the chat stays off, like when `LLM_URL` is empty. The file is never committed (`.gitignore` blocks `profile/` and `Profile.md`).
+
+One-time setup on the server, before the first sync that has the mount (otherwise Docker creates the folder owned by root): `mkdir /srv/apps/milanvulin-site/profile`.
+
+The update is done from your own computer over ssh (copy the file to `profile/Profile.md`, restart only the `api` service with `docker compose restart api`, check the log line, ask the model "hi"). The script that does this is kept outside the repository, together with the profile text.

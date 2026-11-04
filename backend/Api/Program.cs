@@ -97,6 +97,12 @@ app.MapPost("/api/chat", async (HttpContext ctx, ChatRequest? request, ChatServi
     return Results.Empty;
 }).RequireRateLimiting("chat");
 
+// Says in the log whether the chat model got its profile text, so an update can be verified.
+if (ChatPrompt.Profile is { } profile)
+    app.Logger.LogInformation("Chat profile: loaded, {Chars} characters", profile.Length);
+else
+    app.Logger.LogWarning("Chat profile: missing or empty at {Path}; the chat stays off", ChatPrompt.ProfilePath);
+
 app.Run();
 
 static string? ParseScheme(string? cfVisitor)
