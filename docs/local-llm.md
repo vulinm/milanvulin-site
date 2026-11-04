@@ -65,4 +65,4 @@ The profile text is read once when the API starts. On the server it is looked up
 
 One-time setup on the server, before the first sync that has the mount (otherwise Docker creates the folder owned by root): `mkdir /srv/apps/milanvulin-site/profile`.
 
-To update it from your own computer, edit the text and run `SERVER=user@host scripts/update-profile.sh path/to/Profile.md`. The script checks the length (at most 1,300 words for the 4096-token context), copies the file, restarts only the API container, waits until it is healthy, prints the `Chat profile: ...` log line and sends the model a "hi". Nothing is rebuilt and nothing is committed, so the server's text does not have to be public.
+The update is done from your own computer over ssh (copy the file to `profile/Profile.md`, restart only the `api` service with `docker compose restart api`, check the log line, ask the model "hi"). The script that does this is kept outside the repository, together with the profile text.

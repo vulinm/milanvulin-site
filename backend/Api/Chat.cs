@@ -191,7 +191,7 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
 // The system prompt is sent to the model with every question. What the model knows about Milan comes only from a
 // profile file that lives on the server, at a fixed path: it is not part of this public repository and there is no
 // built-in copy. Without that file the chat stays switched off. The text is read once at startup, so after changing
-// the file the API must be restarted (scripts/update-profile.sh does that).
+// the file the API must be restarted (a local script run over ssh does that, see docs/local-llm.md).
 public static class ChatPrompt
 {
     public static readonly string ProfilePath = Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
