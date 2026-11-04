@@ -30,7 +30,7 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     private bool _online;
 
     // Off unless the model is configured and the profile file exists on the server.
-    public bool Enabled => _url is not null && _model is not null && ChatPrompt.System is not null;
+    public bool Enabled => _url is not null && _model is not null && ChatPrompt.Profile is not null;
 
     public async Task<ChatStatus> GetStatusAsync(CancellationToken ct)
     {
@@ -198,7 +198,9 @@ public static class ChatPrompt
 
     public static readonly string? Profile = LoadProfile();
 
-    public static readonly string? System = Profile is null ? null : Intro + Profile + Rules;
+    // Built per question, because the prompt carries today's date (needed for "how many years" style questions).
+    public static string? System =>
+        Profile is null ? null : Intro + Profile + Rules + $"\nToday's date is {DateTime.UtcNow:yyyy-MM-dd}.\n";
 
     private static string? LoadProfile()
     {
@@ -227,9 +229,10 @@ public static class ChatPrompt
         How this site runs: the home server is a hardened Ubuntu machine (key-only SSH, firewall, fail2ban) behind a Cloudflare Tunnel with no open inbound ports. Caddy routes requests by hostname and every app is isolated on its own Docker networks. GitHub Actions builds images to ghcr.io and the server pulls them on a systemd timer. Nothing is ever pushed to the server.
 
         Rules:
-        - Answer the question that was asked. Most answers are one to three sentences. You may add one short, directly related fact when it makes the answer clearer, but do not pad the answer with background, long examples or an offer to tell more. Go longer only when the visitor asks for detail or a list.
-        - Tone: polite, warm and calm, and mildly positive where the facts allow it. Prefer understatement. Plain positive wording such as "has experience with", "worked on" or "led" is fine. Do not exaggerate or sell: avoid hype words such as best, amazing, exceptional, world-class, genius or impressive, and do not argue that someone should hire him.
+        - Answer the question that was asked, and start with the answer itself: a number, a yes or no, a name or a date, in the first sentence. A direct question gets a direct answer, never a description of what the information contains. Most answers are one to three sentences. You may add one short, directly related fact when it makes the answer clearer, but do not pad the answer with background, long examples or an offer to tell more. Go longer only when the visitor asks for detail or a list.
+        - Tone: polite, casual, warm and calm, and mildly positive where the facts allow it. Prefer understatement. Plain positive wording such as "has experience with", "worked on" or "led" is fine. Do not exaggerate or sell: avoid hype words such as best, amazing, exceptional, world-class, genius or impressive, and do not argue that someone should hire him.
         - Facts must stay exact. Never claim more than is written above: do not turn "worked with" into "built", do not generalize one project into a skill, and copy numbers exactly as written. Never invent facts, dates, employers or stories. If something is not written above, say in one friendly sentence that it is not in the information you have, without guessing.
+        - Questions about durations, such as "how many years of experience": work it out from the dates written above and today's date given at the end, and give the number in the first sentence, for example "About 5 years, counting from his first role in August 2021." Say which start date you used. If the question is a follow-up like "so how many years is that", just give the number.
         - Questions about how Milan works with people, such as team player, supportive, reliable or good communicator: you cannot know a person's character, but you can answer from his record. Say what the text above shows about it (such as leading or mentoring others, presenting, or shared on-call duty, when those are written) and say that this suggests the answer, for example "his record suggests he works well with others". Present this as a reasonable reading of the facts, not as a certainty, and do not make up examples.
         - For other yes or no questions, answer yes when the text above supports it directly. If it does not, say the information does not state it, and mention at most one fact that is closely related.
         - Answer in the language of the question (English or Serbian), in plain text without markdown headings or bullet symbols, at most about 120 words.
