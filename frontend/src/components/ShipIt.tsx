@@ -7,6 +7,9 @@ const BAR_WIDTH = 600;
 const REPLAY_SPEED = 6;
 // If the API came up much later than its build finished, it was restarted for another reason.
 const MAX_PICKUP_SECONDS = 900;
+// The image is published a few seconds before GitHub marks the whole run as finished, so the server can
+// pull it slightly "before" the run ends. Treat that small difference as an immediate pickup.
+const MAX_EARLY_SECONDS = 60;
 
 const seconds = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 1000;
 
@@ -30,7 +33,9 @@ export function ShipIt() {
   const live = runs.find((r) => r.sha === version.sha && r.status === "completed");
   const ci = live ? seconds(live.started, live.updated) : null;
   const pickupRaw = live ? seconds(live.updated, version.startedAt) : null;
-  const pickup = pickupRaw !== null && pickupRaw >= 0 && pickupRaw <= MAX_PICKUP_SECONDS ? pickupRaw : null;
+  const pickup =
+    pickupRaw !== null && pickupRaw >= -MAX_EARLY_SECONDS && pickupRaw <= MAX_PICKUP_SECONDS ? Math.max(0, pickupRaw) : null;
+  const early = pickupRaw !== null && pickupRaw < 0 && pickup !== null;
   const total = ci !== null && pickup !== null ? ci + pickup : null;
 
   function replay() {
@@ -69,13 +74,16 @@ export function ShipIt() {
             Live now: commit <code>{version.sha.slice(0, 7)}</code>. Both durations are measured: the build time comes
             from the GitHub Actions run, and the pickup time is the gap between that run finishing and this API
             container starting. Replay runs {REPLAY_SPEED}x faster than real time.
+            {early && " The server pulled the image a few seconds before GitHub marked the run as finished, so the pickup is shown as 0s."}
           </p>
         </>
       ) : (
         <p className="note">
           {version.sha === "dev"
             ? "This is a local build, so there is no CI run to match. The timeline appears on the deployed site."
-            : "The commit running here does not match a finished build in the last ten runs, so there is nothing to measure yet. Check the list below."}
+            : live
+              ? "This build is running, but the container was started outside the normal deploy (for example restarted later), so the pickup time cannot be measured. The next deploy will show it."
+              : "The commit running here does not match a finished build in the last ten runs, so there is nothing to measure yet. Check the list below."}
         </p>
       )}
 
