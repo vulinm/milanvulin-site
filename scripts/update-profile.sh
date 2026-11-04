@@ -48,7 +48,9 @@ done
 echo "API health: $state"
 [ "$state" = healthy ] || { echo "API did not become healthy; check: docker logs $CONTAINER" >&2; exit 1; }
 
-docker logs "$CONTAINER" 2>&1 | grep "Chat profile" | tail -1
+line=$(docker logs "$CONTAINER" 2>&1 | grep "Chat profile" | tail -1 || true)
+echo "$line"
+case "$line" in *loaded*) ;; *) echo "The API did not load the profile; check $APP_DIR/profile/Profile.md and the volume in compose.llm.yaml." >&2; exit 1 ;; esac
 
 echo 'Asking the model "hi" ...'
 reply=$(docker compose exec -T api wget -qO- \
@@ -59,7 +61,7 @@ if printf '%s' "$reply" | grep -q '"done":true'; then
   printf '%s' "$reply" | grep '"done":true' | tail -1
   echo "OK: the model answered."
 else
-  echo "No complete answer from the model. Is Ollama up (docker ps) and LLM_URL set in .env?" >&2
+  echo "No complete answer from the model. Is Ollama up (docker ps) and are LLM_URL and LLM_MODEL set in .env?" >&2
   exit 1
 fi
 REMOTE

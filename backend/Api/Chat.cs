@@ -10,7 +10,7 @@ public sealed record ChatRequest(List<ChatMessage>? Messages);
 public sealed record ChatStatus(bool Enabled, bool Online, string? Model);
 
 // Streams answers from a local model that speaks the OpenAI chat API (Ollama, llama.cpp server, ...).
-// The feature is off unless both LLM_URL and LLM_MODEL are set, so the site works without a GPU.
+// The feature is off unless LLM_URL and LLM_MODEL are set and the profile file exists, so the site works without a GPU.
 public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILogger<ChatService> log)
 {
     private const int MaxMessages = 8;
@@ -29,7 +29,8 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     private DateTimeOffset _checked = DateTimeOffset.MinValue;
     private bool _online;
 
-    public bool Enabled => _url is not null && _model is not null;
+    // Off unless the model is configured and the profile file exists on the server.
+    public bool Enabled => _url is not null && _model is not null && ChatPrompt.System is not null;
 
     public async Task<ChatStatus> GetStatusAsync(CancellationToken ct)
     {
@@ -95,7 +96,7 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
 
         var messages = new JsonArray
         {
-            new JsonObject { ["role"] = "system", ["content"] = ChatPrompt.System },
+            new JsonObject { ["role"] = "system", ["content"] = ChatPrompt.System ?? "" },
         };
         foreach (var m in history)
             messages.Add(new JsonObject { ["role"] = m.Role, ["content"] = m.Content });
@@ -187,44 +188,30 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     }
 }
 
-// The system prompt is sent to the model with every question. What the model knows about Milan comes from a profile
-// text that lives only on the server (so it can change without a rebuild and is not part of this public repository).
-// If that file is missing, a short built-in text with public facts is used and the chat still works.
+// The system prompt is sent to the model with every question. What the model knows about Milan comes only from a
+// profile file that lives on the server, at a fixed path: it is not part of this public repository and there is no
+// built-in copy. Without that file the chat stays switched off. The text is read once at startup, so after changing
+// the file the API must be restarted (scripts/update-profile.sh does that).
 public static class ChatPrompt
 {
-    private const string Fallback = """
-        Milan Vulin is a backend engineer with DevOps and networking depth.
-        He was a software engineer on Microsoft's Azure networking team, first as a contractor and then full-time.
-        He builds and runs the whole path from commit to production: C# and ASP.NET Core, React and TypeScript, PostgreSQL, Docker and Compose, GitHub Actions, Linux and systemd, Cloudflare Tunnel, Caddy, Azure networking.
-        OwnForge is his reusable app skeleton and deployment platform (github.com/vulinm/ownforge-skeleton). This site's source is at github.com/vulinm/milanvulin-site.
-        He is looking for backend roles with a DevOps or networking flavor. More details: github.com/vulinm.
-        """;
+    public static readonly string ProfilePath = Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
 
-    public static readonly string Profile;
-    public static readonly string ProfileSource;
-    public static readonly string System;
+    public static readonly string? Profile = LoadProfile();
 
-    static ChatPrompt()
+    public static readonly string? System = Profile is null ? null : Intro + Profile + Rules;
+
+    private static string? LoadProfile()
     {
-        (Profile, ProfileSource) = LoadProfile();
-        System = Intro + Profile + Rules;
-    }
-
-    private static (string Text, string Source) LoadProfile()
-    {
-        var path = Environment.GetEnvironmentVariable("CHAT_PROFILE_FILE") is { Length: > 0 } custom
-            ? custom
-            : Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
         try
         {
-            var text = File.ReadAllText(path).Trim();
-            if (text.Length > 0) return (text, "server file");
+            var text = File.ReadAllText(ProfilePath).Trim();
+            return text.Length > 0 ? text : null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Missing, unreadable, or a directory that Docker created for a bind mount: use the fallback.
+            // Missing, unreadable, or a directory that Docker created for the bind mount.
+            return null;
         }
-        return (Fallback.Trim(), "built-in fallback");
     }
 
     private const string Intro = """
