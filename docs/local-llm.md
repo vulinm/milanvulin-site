@@ -12,7 +12,7 @@ browser, then Cloudflare and the tunnel, Caddy, the web container (nginx, unbuff
 - Global: at most 2 answers generated at the same time; a third visitor gets a friendly "busy" message instead of a queue.
 - Size limits: 500 characters per question, 8 messages of history, 350 output tokens, 60 seconds per answer.
 - If a visitor closes the page, the request is cancelled and the GPU stops generating.
-- The system prompt contains only public facts and tells the model not to invent anything about Milan. Messages are not stored or logged by the site.
+- The system prompt contains only public facts and tells the model not to invent anything about Milan. What the model knows about Milan is in `backend/Api/Profile.md` (public, edit it like any other file); the rules around it are in `ChatPrompt` in `backend/Api/Chat.cs`. Messages are not stored or logged by the site.
 
 ## Server setup (once)
 1. NVIDIA driver on the host. `nvidia-smi` must show the RTX 3060. If it does not, install the recommended driver (for example `sudo ubuntu-drivers install`) and reboot.
@@ -25,7 +25,8 @@ services:
     image: ollama/ollama:<pinned version>
     restart: unless-stopped
     environment:
-      OLLAMA_KEEP_ALIVE: 30m        # keep the model in VRAM between visitors
+      OLLAMA_KEEP_ALIVE: "-1"       # keep the model in VRAM for good, so the first visitor after a pause does not wait for a reload
+      OLLAMA_CONTEXT_LENGTH: "8192" # the profile in the system prompt is about 1,300 tokens; leave room for the conversation
       OLLAMA_NUM_PARALLEL: "2"      # matches the API's limit of 2 parallel answers
       OLLAMA_MAX_LOADED_MODELS: "1"
     volumes: [ollama:/root/.ollama]
