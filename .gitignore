@@ -30,3 +30,7 @@ pgdata/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Chat profile: lives on the server only (see docs/local-llm.md)
+/profile/
+Profile.md

@@ -188,13 +188,17 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
 }
 
 // The system prompt is sent to the model with every question. What the model knows about Milan comes from a profile
-// text, looked up in this order: a file on the server (so it can change without a rebuild), the Profile.md bundled
-// with the image (public, in the repository), and a short built-in fallback.
+// text that lives only on the server (so it can change without a rebuild and is not part of this public repository).
+// If that file is missing, a short built-in text with public facts is used and the chat still works.
 public static class ChatPrompt
 {
-    private const string Fallback =
-        "Milan Vulin is a backend engineer with DevOps and networking depth, formerly on Microsoft's Azure networking team. " +
-        "Details: github.com/vulinm.";
+    private const string Fallback = """
+        Milan Vulin is a backend engineer with DevOps and networking depth.
+        He was a software engineer on Microsoft's Azure networking team, first as a contractor and then full-time.
+        He builds and runs the whole path from commit to production: C# and ASP.NET Core, React and TypeScript, PostgreSQL, Docker and Compose, GitHub Actions, Linux and systemd, Cloudflare Tunnel, Caddy, Azure networking.
+        OwnForge is his reusable app skeleton and deployment platform (github.com/vulinm/ownforge-skeleton). This site's source is at github.com/vulinm/milanvulin-site.
+        He is looking for backend roles with a DevOps or networking flavor. More details: github.com/vulinm.
+        """;
 
     public static readonly string Profile;
     public static readonly string ProfileSource;
@@ -208,24 +212,19 @@ public static class ChatPrompt
 
     private static (string Text, string Source) LoadProfile()
     {
-        var serverFile = Environment.GetEnvironmentVariable("CHAT_PROFILE_FILE") is { Length: > 0 } custom
+        var path = Environment.GetEnvironmentVariable("CHAT_PROFILE_FILE") is { Length: > 0 } custom
             ? custom
             : Path.Combine(AppContext.BaseDirectory, "profile", "Profile.md");
-        var bundled = Path.Combine(AppContext.BaseDirectory, "Profile.md");
-
-        foreach (var (path, source) in new[] { (serverFile, "server file"), (bundled, "bundled file") })
+        try
         {
-            try
-            {
-                var text = File.ReadAllText(path).Trim();
-                if (text.Length > 0) return (text, source);
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                // Missing, unreadable, or a directory that Docker created for a bind mount: try the next source.
-            }
+            var text = File.ReadAllText(path).Trim();
+            if (text.Length > 0) return (text, "server file");
         }
-        return (Fallback, "built-in fallback");
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // Missing, unreadable, or a directory that Docker created for a bind mount: use the fallback.
+        }
+        return (Fallback.Trim(), "built-in fallback");
     }
 
     private const string Intro = """

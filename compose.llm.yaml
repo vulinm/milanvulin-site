@@ -2,8 +2,9 @@
 # Enable it only after the model service exists on the server: add it to COMPOSE_FILE in .env
 # (compose.yaml:compose.platform.yaml:compose.llm.yaml) and set LLM_URL and LLM_MODEL there.
 # Without it the chat panel simply stays hidden.
-# ./profile/Profile.md next to this file, when present, replaces the profile bundled in the image
-# (see scripts/update-profile.sh). Create the folder yourself first, otherwise Docker creates it owned by root.
+# ./profile/Profile.md next to this file (on the server only, never committed) is what the chat model knows
+# about Milan; without it a short built-in text is used (see scripts/update-profile.sh). Create the folder
+# yourself first, otherwise Docker creates it owned by root.
 services:
   api:
     networks:
