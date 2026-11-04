@@ -149,6 +149,10 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
 @media (max-width: 40rem) {
   .runs li { grid-template-columns: 0.7rem 4rem 1fr auto; }
   .runs .when { display: none; }
+  /* Phones: show the whole commit message on several lines instead of cutting it with an ellipsis. */
+  .runs li { align-items: start; }
+  .runs .dot { margin-top: 0.4rem; }
+  .runs .msg { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.4; }
   /* Narrow screens: the menu goes under the site name instead of squeezing next to it. */
   .top { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
   .top nav { flex-wrap: wrap; gap: 0.5rem 1.25rem; }
