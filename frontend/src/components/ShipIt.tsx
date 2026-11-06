@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PipelineTrend } from "./PipelineTrend";
 import { ago, fmtSeconds, getRuns, getVersion, type Run, type Version } from "../api";
 
 type Loaded = { version: Version; runs: Run[] };
@@ -86,6 +87,8 @@ export function ShipIt() {
               : "The commit running here does not match a finished build in the last ten runs, so there is nothing to measure yet. Check the list below."}
         </p>
       )}
+
+      <PipelineTrend runs={runs} liveSha={version.sha} pickup={pickup} />
 
       <h3 className="sub">Recent builds of main</h3>
       <ul className="runs">
