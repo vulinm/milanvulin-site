@@ -80,6 +80,7 @@ export function Telemetry() {
 
   return (
     <div ref={ref} className="tele">
+      <p className="lead">What the API container is doing right now: aggregates kept in memory, with no addresses and no message text.</p>
       <div className="tele-head">
         <span className="pill">
           <span className={`dot ${live ? "ok" : data ? "run" : ""}`} aria-hidden="true" />
