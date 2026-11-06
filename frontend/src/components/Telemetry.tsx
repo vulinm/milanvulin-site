@@ -138,23 +138,19 @@ function Tile(props: { label: string; value: React.ReactNode; hint?: string; ton
 
 function ApiPanel({ data }: { data: TelemetryData }) {
   const a = data.api;
-  const total = a.requests.reduce((x, y) => x + y, 0);
   return (
-    <>
-      <div className="tiles">
-        <Tile label="Requests per minute" value={a.requestsPerMinute}>
-          <Spark values={a.requests} cls="run" label={`Requests per minute over the last ${data.windowMinutes} minutes`} />
-        </Tile>
-        <Tile label="Latency p95" value={a.p95Ms === null ? "–" : `${fmtMs(a.p95Ms)} ms`}>
-          <Spark values={a.p95} cls="ship" label={`95th percentile latency over the last ${data.windowMinutes} minutes`} />
-        </Tile>
-        <Tile label="Server errors" value={`${a.errorPercent.toFixed(1)} %`} tone={a.errorPercent > 0 ? "warn" : "ok"}>
-          <Spark values={a.errors} cls={a.errorPercent > 0 ? "warn" : "ok"} label={`Server errors over the last ${data.windowMinutes} minutes`} />
-        </Tile>
-        <Tile label="Uptime" value={fmtUptime(data.uptimeSeconds)} hint="since the API last started" />
-      </div>
-      <ResponseChart p50={a.p50} p95={a.p95} empty={total === 0} />
-    </>
+    <div className="tiles">
+      <Tile label="Requests per minute" value={a.requestsPerMinute}>
+        <Spark values={a.requests} cls="run" label={`Requests per minute over the last ${data.windowMinutes} minutes`} />
+      </Tile>
+      <Tile label="Avg latency" value={a.avgMs === null ? "–" : `${fmtMs(a.avgMs)} ms`}>
+        <Spark values={a.avg} cls="ship" label={`Average latency per minute over the last ${data.windowMinutes} minutes`} />
+      </Tile>
+      <Tile label="Server errors" value={`${a.errorPercent.toFixed(1)} %`} tone={a.errorPercent > 0 ? "warn" : "ok"}>
+        <Spark values={a.errors} cls={a.errorPercent > 0 ? "warn" : "ok"} label={`Server errors over the last ${data.windowMinutes} minutes`} />
+      </Tile>
+      <Tile label="Uptime" value={fmtUptime(data.uptimeSeconds)} hint="since the API last started" />
+    </div>
   );
 }
 
@@ -251,49 +247,6 @@ function Spark({ values, cls, label, max: fixedMax }: { values: Series; cls: str
   );
 }
 
-function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: boolean }) {
-  const X0 = 40;
-  const X1 = 790;
-  const Y0 = 10;
-  const Y1 = 120;
-  const top = niceMax(Math.max(1, ...p95.map((v) => v ?? 0), ...p50.map((v) => v ?? 0)));
-  const grid = [0, 1, 2, 3, 4].map((i) => ({ y: Y1 - ((Y1 - Y0) * i) / 4, v: (top * i) / 4 }));
-  return (
-    <div className="panel">
-      <div className="panel-head">
-        <strong>Response time</strong>
-        <ul className="legend tele-legend">
-          <li><span className="swatch run" />median</li>
-          <li><span className="swatch ship" />95th percentile</li>
-        </ul>
-      </div>
-      {empty ? (
-        <p className="note">No requests in the last {p50.length} minutes yet.</p>
-      ) : (
-        <>
-          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Response time over the last ${p50.length} minutes, scaled up to ${top} milliseconds`}>
-            {grid.map((g) => (
-              <g key={g.y}>
-                <line className="tele-grid" x1={X0} x2={X1} y1={g.y} y2={g.y} />
-                <text className="tele-ytext" x={X0 - 8} y={g.y + 3} textAnchor="end">{g.v}</text>
-              </g>
-            ))}
-            <path className="chart-line ship" d={pathOf(p95, X0, X1, Y0, Y1, 0, top)} />
-            <path className="chart-line run" d={pathOf(p50, X0, X1, Y0, Y1, 0, top)} />
-            {loneDots(p95, X0, X1, Y0, Y1, 0, top).map((p) => (
-              <circle key={`p95-${p.x}`} className="chart-dot ship" cx={p.x} cy={p.y} r={3.5} />
-            ))}
-            {loneDots(p50, X0, X1, Y0, Y1, 0, top).map((p) => (
-              <circle key={`p50-${p.x}`} className="chart-dot run" cx={p.x} cy={p.y} r={3.5} />
-            ))}
-          </svg>
-          <div className="tele-axis mono"><span>−{p50.length} min</span><span>scale to {top} ms</span><span>now</span></div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // One dot per answer, placed where it finished. The dashed line is the median; a dot below it turns amber.
 function SpeedChart({ answers, median, now, windowMinutes }: { answers: TelemetryData["chat"]["answers"]; median: number | null; now: number; windowMinutes: number }) {
   const X0 = 40;
@@ -376,11 +329,6 @@ function pathOf(values: Series, x0: number, x1: number, y0: number, y1: number, 
     pen = true;
   });
   return d;
-}
-
-function niceMax(v: number): number {
-  for (const step of [4, 8, 20, 40, 80, 200, 400, 800, 2000, 4000, 8000]) if (v * 1.1 <= step) return step;
-  return Math.ceil(v / 1000) * 1000;
 }
 
 const fmtMs = (ms: number) => (ms >= 100 ? String(Math.round(ms)) : ms.toFixed(1));

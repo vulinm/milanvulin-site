@@ -3,7 +3,6 @@
 public sealed class Telemetry(BuildInfo info)
 {
     public const int WindowMinutes = 10;
-    private const int MaxSamplesPerMinute = 512;
     private const int MaxAnswers = 200;
     private static readonly TimeSpan SnapshotTtl = TimeSpan.FromSeconds(2);
 
@@ -30,7 +29,7 @@ public sealed class Telemetry(BuildInfo info)
             var slot = SlotFor(CurrentMinute());
             slot.Requests++;
             if (status >= 500) slot.Errors++;
-            if (slot.Samples.Count < MaxSamplesPerMinute) slot.Samples.Add((float)elapsedMs);
+            slot.LatencySumMs += elapsedMs;
         }
     }
 
@@ -69,9 +68,8 @@ public sealed class Telemetry(BuildInfo info)
         var current = now.ToUnixTimeSeconds() / 60;
         var requests = new int[WindowMinutes];
         var errors = new int[WindowMinutes];
-        var p50 = new double?[WindowMinutes];
-        var p95 = new double?[WindowMinutes];
-        var all = new List<float>();
+        var avg = new double?[WindowMinutes];
+        var latencySum = 0.0;
         var turnedAway = 0;
 
         for (var i = 0; i < WindowMinutes; i++)
@@ -81,16 +79,10 @@ public sealed class Telemetry(BuildInfo info)
             requests[i] = slot.Requests;
             errors[i] = slot.Errors;
             turnedAway += slot.TurnedAway;
-            if (slot.Samples.Count > 0)
-            {
-                var sorted = slot.Samples.OrderBy(x => x).ToList();
-                p50[i] = Round(Percentile(sorted, 0.5));
-                p95[i] = Round(Percentile(sorted, 0.95));
-                all.AddRange(slot.Samples);
-            }
+            latencySum += slot.LatencySumMs;
+            if (slot.Requests > 0) avg[i] = Round(slot.LatencySumMs / slot.Requests);
         }
 
-        all.Sort();
         var total = requests.Sum();
         var failed = errors.Sum();
         var uptime = Math.Max(0, (now - info.StartedAt).TotalSeconds);
@@ -113,13 +105,11 @@ public sealed class Telemetry(BuildInfo info)
             api = new
             {
                 requestsPerMinute = Math.Round(perMinute, 1),
-                p50Ms = all.Count > 0 ? Round(Percentile(all, 0.5)) : (double?)null,
-                p95Ms = all.Count > 0 ? Round(Percentile(all, 0.95)) : (double?)null,
+                avgMs = total > 0 ? Round(latencySum / total) : (double?)null,
                 errorPercent = total > 0 ? Math.Round(100.0 * failed / total, 1) : 0.0,
                 requests,
                 errors,
-                p50,
-                p95,
+                avg,
             },
             chat = new
             {
@@ -146,7 +136,7 @@ public sealed class Telemetry(BuildInfo info)
         public int Requests;
         public int Errors;
         public int TurnedAway;
-        public readonly List<float> Samples = [];
+        public double LatencySumMs;
 
         public void Reset(long id)
         {
@@ -154,7 +144,7 @@ public sealed class Telemetry(BuildInfo info)
             Requests = 0;
             Errors = 0;
             TurnedAway = 0;
-            Samples.Clear();
+            LatencySumMs = 0;
         }
     }
 
