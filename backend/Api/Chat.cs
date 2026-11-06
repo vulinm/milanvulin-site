@@ -11,7 +11,7 @@ public sealed record ChatStatus(bool Enabled, bool Online, string? Model);
 
 // Streams answers from a local model that speaks the OpenAI chat API (Ollama, llama.cpp server, ...).
 // The feature is off unless LLM_URL and LLM_MODEL are set and the profile file exists, so the site works without a GPU.
-public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILogger<ChatService> log)
+public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, Telemetry telemetry, ILogger<ChatService> log)
 {
     private const int MaxMessages = 8;
     private const int MaxUserChars = 500;
@@ -19,6 +19,8 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
     private const int MaxTotalChars = 6000;
     private const int MaxOutputTokens = 350;
     private const int ParallelAnswers = 2;
+
+    public const int Slots = ParallelAnswers;
 
     private static readonly TimeSpan MaxGeneration = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan StatusTtl = TimeSpan.FromSeconds(10);
@@ -81,6 +83,8 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
 
     // At most ParallelAnswers answers run at once, so the GPU never queues up behind visitors.
     public bool TryAcquire() => _slots.Wait(0);
+
+    public int SlotsInUse => ParallelAnswers - _slots.CurrentCount;
 
     public void Release() => _slots.Release();
 
@@ -153,6 +157,7 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, ILo
             var generationMs = firstTokenMs is { } first ? Math.Max(1, clock.ElapsedMilliseconds - first) : 0;
             var perSecond = generationMs > 0 && tokens > 1 ? Math.Round((tokens - 1) * 1000.0 / generationMs, 1) : 0;
             await WriteEventAsync(ctx, new { done = true, model = _model, ttftMs = firstTokenMs ?? 0, tokens, tps = perSecond }, token);
+            telemetry.Answer(firstTokenMs ?? 0, perSecond);
             log.LogInformation("Chat answer: {Tokens} tokens in {Ms} ms", tokens, clock.ElapsedMilliseconds);
         }
         catch (OperationCanceledException)

@@ -38,6 +38,34 @@ export type ChatDone = { model: string; ttftMs: number; tokens: number; tps: num
 
 export const getChatStatus = () => get<ChatStatus>("/api/chat/status");
 
+export type TelemetryData = {
+  generatedAt: string;
+  windowMinutes: number;
+  startedAt: string;
+  uptimeSeconds: number;
+  api: {
+    requestsPerMinute: number;
+    p50Ms: number | null;
+    p95Ms: number | null;
+    errorPercent: number;
+    requests: number[];
+    errors: number[];
+    p50: (number | null)[];
+    p95: (number | null)[];
+  };
+  chat: {
+    enabled: boolean;
+    slotsInUse: number;
+    slotsTotal: number;
+    turnedAway: number;
+    ttftMedianMs: number | null;
+    tpsMedian: number | null;
+    answers: { ttftMs: number; tps: number }[];
+  };
+};
+
+export const getTelemetry = () => get<TelemetryData>("/api/telemetry");
+
 export class ChatError extends Error {
   status: number;
   code: string;
