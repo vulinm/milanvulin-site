@@ -5,6 +5,7 @@ import { Architecture } from "./components/Architecture";
 import { Chat } from "./components/Chat";
 import { NetworkLab } from "./components/NetworkLab";
 import { ShipIt } from "./components/ShipIt";
+import { Telemetry } from "./components/Telemetry";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
 
@@ -38,6 +39,7 @@ function App() {
           <a href="#ship">Ship it</a>
           <a href="#architecture">Architecture</a>
           <a href="#trace">Trace</a>
+          <a href="#telemetry">Telemetry</a>
           <a href="#lab">Network lab</a>
           <ThemeToggle />
         </nav>
@@ -103,8 +105,17 @@ function App() {
         </Section>
 
         <Section
-          id="lab"
+          id="telemetry"
           n="04"
+          title="Live telemetry"
+          lead="What the API container is doing right now. These are aggregates kept in memory, with no addresses and no message text."
+        >
+          <Telemetry chatEnabled={chat?.enabled === true} />
+        </Section>
+
+        <Section
+          id="lab"
+          n="05"
           title="Network lab"
           lead="Subnet maths the way Azure counts it. Plan how a virtual network's address space splits into subnets, then see the bits behind each one."
         >

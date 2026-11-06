@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -19,6 +20,7 @@ builder.Services.AddSingleton(new BuildInfo(
     Repo: builder.Configuration["GITHUB_REPO"] ?? "vulinm/milanvulin-site",
     StartedAt: startedAt));
 builder.Services.AddSingleton<DeployFeed>();
+builder.Services.AddSingleton<Telemetry>();
 
 // Local language model (optional): see ChatService. The client has no timeout because answers stream.
 builder.Services.AddHttpClient("llm", c => c.Timeout = Timeout.InfiniteTimeSpan);
@@ -26,6 +28,11 @@ builder.Services.AddSingleton<ChatService>();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = (context, _) =>
+    {
+        context.HttpContext.RequestServices.GetRequiredService<Telemetry>().TurnedAway();
+        return ValueTask.CompletedTask;
+    };
     // Per visitor: Cloudflare puts the real address in this header (the API is only reachable through it).
     o.AddPolicy("chat", ctx => RateLimitPartition.GetSlidingWindowLimiter(
         ctx.Request.Headers["CF-Connecting-IP"].ToString() is { Length: > 0 } ip ? ip : "unknown",
@@ -39,6 +46,33 @@ builder.Services.AddRateLimiter(o =>
 });
 
 var app = builder.Build();
+
+// Times every API request for the telemetry panel. Health checks and the telemetry endpoint itself are left out so
+// they do not count as traffic, and chat answers are left out because they stream for seconds (the chat has its own
+// numbers). Only the duration and the status code are kept, never the path, address or headers.
+var telemetry = app.Services.GetRequiredService<Telemetry>();
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path;
+    if (path.StartsWithSegments("/healthz") || path.StartsWithSegments("/api/telemetry") || path.StartsWithSegments("/api/chat"))
+    {
+        await next(ctx);
+        return;
+    }
+
+    var started = Stopwatch.GetTimestamp();
+    var status = StatusCodes.Status500InternalServerError; // stays 500 if the request throws
+    try
+    {
+        await next(ctx);
+        status = ctx.Response.StatusCode;
+    }
+    finally
+    {
+        telemetry.Request(Stopwatch.GetElapsedTime(started).TotalMilliseconds, status);
+    }
+});
+
 app.UseRateLimiter();
 
 // Internal only: the web container forwards just /api/*, so this is never reachable from outside.
@@ -74,6 +108,13 @@ app.MapGet("/api/trace", (HttpContext ctx, BuildInfo info) =>
     };
 });
 
+// Aggregates for the Live telemetry section: one small document, kept for a couple of seconds.
+app.MapGet("/api/telemetry", (HttpContext ctx, Telemetry t, ChatService chat) =>
+{
+    ctx.Response.Headers.CacheControl = "no-store";
+    return Results.Json(t.Snapshot(chat));
+});
+
 // Chat with the local model. Status says whether the feature is configured and the model answers.
 app.MapGet("/api/chat/status", async (ChatService chat, CancellationToken ct) => await chat.GetStatusAsync(ct));
 
@@ -85,7 +126,10 @@ app.MapPost("/api/chat", async (HttpContext ctx, ChatRequest? request, ChatServi
     if (problem is not null) return Results.BadRequest(new { error = problem });
 
     if (!chat.TryAcquire())
+    {
+        telemetry.TurnedAway();
         return Results.Json(new { error = "busy" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
     try
     {
         await chat.StreamAsync(ctx, history, ct);

@@ -5,6 +5,7 @@ Source of [milanvulin.com](https://milanvulin.com): a portfolio that shows the p
 - **Ask my AI** (optional): a chat with a small open model running on the home server's GPU, streaming token by token, with per-answer speed shown. Off unless a model is configured; see [docs/local-llm.md](docs/local-llm.md).
 - **Ship it, live**: the real push-to-deploy timeline for this site, measured from GitHub Actions runs and the API container's start time.
 - **Clickable architecture**: the runtime and delivery paths as a diagram; every node opens a config excerpt.
+- **Live telemetry**: request rate, latency, server errors and chat speed of the API container, as aggregates kept in memory (no addresses, no message text), polled only while the section is on screen.
 - **Trace my request**: how your own request reached the API container, from Cloudflare headers and measured round-trip times.
 
 ## Stack
