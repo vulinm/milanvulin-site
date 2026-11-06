@@ -334,3 +334,9 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
 .chart-line.faint { stroke-width: 1.5; stroke-opacity: 0.45; }
 .median { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .area { fill: var(--run-bg); }
+
+/* Single minutes with data between empty minutes */
+.spark-dot.run, .chart-dot.run { fill: var(--run); }
+.spark-dot.ship, .chart-dot.ship { fill: var(--ship); }
+.spark-dot.ok { fill: var(--ok); }
+.spark-dot.warn { fill: var(--warn); }

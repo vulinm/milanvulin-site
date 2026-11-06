@@ -226,6 +226,9 @@ function UtilChart({ data }: { data: GpuData }) {
           <path key={d} className="area" d={d} />
         ))}
         <path className="chart-line run" d={line} />
+        {loneDots(values, X0, X1, Y0, Y1, 0, 100).map((p) => (
+          <circle key={p.x} className="chart-dot run" cx={p.x} cy={p.y} r={3.5} />
+        ))}
       </svg>
       <div className="tele-axis mono"><span>−{values.length} min</span><span>highest in each minute</span><span>now</span></div>
     </div>
@@ -241,6 +244,9 @@ function Spark({ values, cls, label, max: fixedMax }: { values: Series; cls: str
   return (
     <svg className="spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
       <path d={d || `M0 ${H - 2}H${W}`} className={`spark-line ${cls}`} />
+      {loneDots(values, 0, W, 2, H - 2, 0, max).map((p) => (
+        <circle key={p.x} className={`spark-dot ${cls}`} cx={p.x} cy={p.y} r={2} />
+      ))}
     </svg>
   );
 }
@@ -274,6 +280,12 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
             ))}
             <path className="chart-line ship" d={pathOf(p95, X0, X1, Y0, Y1, 0, top)} />
             <path className="chart-line run" d={pathOf(p50, X0, X1, Y0, Y1, 0, top)} />
+            {loneDots(p95, X0, X1, Y0, Y1, 0, top).map((p) => (
+              <circle key={`p95-${p.x}`} className="chart-dot ship" cx={p.x} cy={p.y} r={3.5} />
+            ))}
+            {loneDots(p50, X0, X1, Y0, Y1, 0, top).map((p) => (
+              <circle key={`p50-${p.x}`} className="chart-dot run" cx={p.x} cy={p.y} r={3.5} />
+            ))}
           </svg>
           <div className="tele-axis mono"><span>−{p50.length} min</span><span>scale to {top} ms</span><span>now</span></div>
         </>
@@ -331,6 +343,21 @@ function SpeedChart({ answers, median, now, windowMinutes }: { answers: Telemetr
       )}
     </div>
   );
+}
+
+// A minute with data and an empty minute on both sides draws no line segment, so it would be invisible.
+// These are the points that need a dot instead.
+function loneDots(values: Series, x0: number, x1: number, y0: number, y1: number, min: number, max: number): { x: number; y: number }[] {
+  const n = values.length;
+  const dots: { x: number; y: number }[] = [];
+  values.forEach((v, i) => {
+    if (v === null || values[i - 1] != null || values[i + 1] != null) return;
+    dots.push({
+      x: x0 + ((x1 - x0) * i) / Math.max(1, n - 1),
+      y: y1 - ((y1 - y0) * (v - min)) / (max - min || 1),
+    });
+  });
+  return dots;
 }
 
 // Builds an SVG path through the points, starting a new segment after every gap.
