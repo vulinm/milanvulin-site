@@ -73,9 +73,9 @@ function useTelemetry(target: React.RefObject<HTMLElement | null>, withGpu: bool
   return { data, gpu, failed, ageMs: fetchedAt ? now - fetchedAt : null };
 }
 
-export function Telemetry({ chatEnabled }: { chatEnabled: boolean }) {
+export function Telemetry() {
   const ref = useRef<HTMLDivElement>(null);
-  const { data, gpu, failed, ageMs } = useTelemetry(ref, chatEnabled);
+  const { data, failed, ageMs } = useTelemetry(ref, false);
   const live = data !== null && !failed && ageMs !== null && ageMs < STALE_MS;
 
   return (
@@ -97,19 +97,29 @@ export function Telemetry({ chatEnabled }: { chatEnabled: boolean }) {
         <>
           <h3 className="sub">API</h3>
           <ApiPanel data={data} />
-          {chatEnabled && data.chat.enabled && (
+          <p className="note">Kept in memory and reset when the API restarts. Nothing here records who asked or what they asked.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Shown right under the chat window: how the model behind it is doing. Polls on its own, only while on screen.
+export function ChatTelemetry() {
+  const ref = useRef<HTMLDivElement>(null);
+  const { data, gpu } = useTelemetry(ref, true);
+  return (
+    <div ref={ref} className="tele">
+      {data?.chat.enabled && (
+        <>
+          <h3 className="sub">Live numbers</h3>
+          <ChatPanel data={data} />
+          {gpu && (gpu.gpu || gpu.model) && (
             <>
-              <h3 className="sub">Ask my AI</h3>
-              <ChatPanel data={data} />
-              {gpu && (gpu.gpu || gpu.model) && (
-                <>
-                  <h3 className="sub">GPU</h3>
-                  <GpuPanel data={gpu} />
-                </>
-              )}
+              <h3 className="sub">GPU</h3>
+              <GpuPanel data={gpu} />
             </>
           )}
-          <p className="note">Kept in memory and reset when the API restarts. Nothing here records who asked or what they asked.</p>
         </>
       )}
     </div>

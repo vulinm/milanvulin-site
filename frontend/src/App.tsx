@@ -5,7 +5,7 @@ import { Architecture } from "./components/Architecture";
 import { Chat } from "./components/Chat";
 import { NetworkLab } from "./components/NetworkLab";
 import { ShipIt } from "./components/ShipIt";
-import { Telemetry } from "./components/Telemetry";
+import { ChatTelemetry, Telemetry } from "./components/Telemetry";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
 
@@ -73,6 +73,7 @@ function App() {
             lead="A small open model running on the RTX 3060 in my home server, not a hosted API. It knows my public profile and how this site is built, and each answer shows how fast the GPU produced it."
           >
             <Chat status={chat} onRecheck={checkChat} />
+            <ChatTelemetry />
             <p className="note">It can be wrong. This site does not store your messages.</p>
           </Section>
         )}
@@ -110,7 +111,7 @@ function App() {
           title="Live telemetry"
           lead="What the API container is doing right now. These are aggregates kept in memory, with no addresses and no message text."
         >
-          <Telemetry chatEnabled={chat?.enabled === true} />
+          <Telemetry />
         </Section>
 
         <Section
