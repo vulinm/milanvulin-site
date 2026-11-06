@@ -250,3 +250,39 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
   /* The SVG scales down on phones, so its labels would be tiny; the table below names every subnet. */
   .lab-bar-text, .lab-bar-free-text { display: none; }
 }
+
+/* Network lab: NSG evaluator */
+.lab-warn { color: var(--warn); margin: 0.2rem 0; }
+.lab[hidden], [role="tabpanel"][hidden] { display: none; }
+.nsg-rules { list-style: none; padding: 0; margin: 0; }
+.nsg-rule { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.7rem 0.8rem; margin: 0.5rem 0; }
+.nsg-rule p { margin: 0.3rem 0 0; }
+.nsg-top { display: grid; grid-template-columns: 4.5rem 1fr 6.5rem 7.5rem 5.5rem auto; gap: 0.5rem; }
+.nsg-match { display: grid; grid-template-columns: 1fr 1fr 9rem; gap: 0.5rem; margin-top: 0.5rem; }
+.nsg-match label { min-width: 0; }
+.nsg-match input, .nsg-packet input { width: 100%; }
+.nsg-packet { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem 0.8rem; margin: 0.5rem 0; }
+.nsg-packet label { min-width: 0; }
+.nsg-packet select { width: 100%; }
+.nsg-verdict { margin: 1rem 0 0.4rem; padding: 0.7rem 1rem; border-radius: 8px; border: 1px solid var(--line); font-size: 1rem; }
+.nsg-verdict.ok { border-color: var(--ok); color: var(--ok); }
+.nsg-verdict.bad { border-color: var(--bad); color: var(--bad); }
+.nsg-verdict strong { font-size: 1.15rem; }
+.nsg-checks { list-style: none; padding: 0; margin: 0.5rem 0 1rem; }
+.nsg-check { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 0.6rem 0.9rem; margin: 0.4rem 0; }
+.nsg-check.win { border-color: var(--run); }
+.nsg-check.skip { opacity: 0.6; }
+.nsg-check-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; }
+.nsg-check-prio { color: var(--muted); font-size: 0.85rem; min-width: 3rem; }
+.nsg-act { font-family: var(--mono); font-size: 0.78rem; }
+.nsg-act.ok, .nsg-dims li.ok > span:first-child { color: var(--ok); }
+.nsg-act.bad, .nsg-dims li.bad > span:first-child { color: var(--bad); }
+.nsg-dims { list-style: none; padding: 0; margin: 0.4rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 1.25rem; font-size: 0.85rem; }
+.nsg-dims li { display: block; }
+.nsg-skip { margin: 0.3rem 0 0; }
+@media (max-width: 40rem) {
+  .nsg-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nsg-top .nsg-name { grid-column: span 2; }
+  .nsg-top button { grid-column: 1 / -1; }
+  .nsg-match { grid-template-columns: 1fr; }
+}
