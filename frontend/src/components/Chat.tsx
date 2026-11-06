@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ChatError, streamChat, type ChatDone, type ChatMsg, type ChatStatus } from "../api";
+import { QUESTION_SLOTS } from "../chatQuestions";
 
 type View = ChatMsg & { stats?: ChatDone };
-
-const SUGGESTIONS = [
-  "What does Milan work on?",
-  "How does this site deploy itself?",
-  "Why a pull-based pipeline?",
-];
 
 const HISTORY_LIMIT = 6; // messages sent along with each question
 const MAX_ASSISTANT_CHARS = 2000;
@@ -26,6 +21,9 @@ export function Chat({ status, onRecheck }: { status: ChatStatus; onRecheck: () 
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Where each of the suggested-question slots is in its list, and which slot is being answered right now.
+  const [position, setPosition] = useState<number[]>(() => QUESTION_SLOTS.map(() => 0));
+  const [asking, setAsking] = useState<number | null>(null);
   const abort = useRef<AbortController | null>(null);
   const log = useRef<HTMLDivElement>(null);
 
@@ -38,7 +36,9 @@ export function Chat({ status, onRecheck }: { status: ChatStatus; onRecheck: () 
   const patchLast = (change: (m: View) => View) =>
     setMessages((cur) => (cur.length === 0 ? cur : [...cur.slice(0, -1), change(cur[cur.length - 1])]));
 
-  async function send(text: string) {
+  // slot is set when the question came from a suggestion button: that button advances to its next question, but only
+  // if the answer arrived in full, so a failed or stopped answer leaves the same question available.
+  async function send(text: string, slot?: number) {
     const question = text.trim();
     if (!question || busy) return;
 
@@ -49,17 +49,22 @@ export function Chat({ status, onRecheck }: { status: ChatStatus; onRecheck: () 
     setInput("");
     setError(null);
     setBusy(true);
+    setAsking(slot ?? null);
 
     const controller = new AbortController();
     abort.current = controller;
     try {
       const stats = await streamChat(history, (piece) => patchLast((m) => ({ ...m, content: m.content + piece })), controller.signal);
-      if (stats) patchLast((m) => ({ ...m, stats }));
+      if (stats) {
+        patchLast((m) => ({ ...m, stats }));
+        if (slot !== undefined) setPosition((cur) => cur.map((p, i) => (i === slot ? p + 1 : p)));
+      }
     } catch (e) {
       if (!(e instanceof DOMException && e.name === "AbortError")) setError(friendly(e));
       setMessages((cur) => (cur[cur.length - 1]?.content === "" ? cur.slice(0, -1) : cur));
     } finally {
       setBusy(false);
+      setAsking(null);
       abort.current = null;
     }
   }
@@ -74,21 +79,34 @@ export function Chat({ status, onRecheck }: { status: ChatStatus; onRecheck: () 
     );
   }
 
+  // Slots that still have a question left; a slot disappears once its list is used up.
+  const open = QUESTION_SLOTS.flatMap((questions, slot) => (position[slot] < questions.length ? [{ slot, question: questions[position[slot]] }] : []));
+
   return (
     <div className="chat">
-      <div className="chat-log" ref={log} aria-live="polite">
-        {messages.length === 0 && (
-          <div className="suggest">
+      <div className="suggest">
+        {open.length > 0 ? (
+          <>
             <span className="muted small">Try one of these, or ask your own:</span>
             <div className="suggest-row">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => void send(s)}>
-                  {s}
+              {open.map(({ slot, question }) => (
+                <button
+                  key={slot}
+                  type="button"
+                  className={`suggest-chip${asking === slot ? " out" : ""}`}
+                  disabled={busy}
+                  onClick={() => void send(question, slot)}
+                >
+                  {question}
                 </button>
               ))}
             </div>
-          </div>
+          </>
+        ) : (
+          <span className="muted small">Ask your own question below.</span>
         )}
+      </div>
+      <div className={`chat-log${messages.length === 0 ? " empty" : ""}`} ref={log} aria-live="polite">
         {messages.map((m, i) => (
           <div key={i} className={`bubble ${m.role}`}>
             {m.content || (busy && i === messages.length - 1 ? "…" : "")}
@@ -112,6 +130,7 @@ export function Chat({ status, onRecheck }: { status: ChatStatus; onRecheck: () 
           value={input}
           maxLength={500}
           rows={2}
+          disabled={busy}
           placeholder="Ask about my work or how this site runs"
           aria-label="Your question"
           onChange={(e) => setInput(e.target.value)}
