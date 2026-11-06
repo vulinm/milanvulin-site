@@ -86,7 +86,7 @@ export function Telemetry() {
           {live ? "live" : data ? "stale" : failed ? "unavailable" : "loading"}
           {data && ageMs !== null && <span className="mono muted"> updated {Math.max(0, Math.round(ageMs / 1000))} s ago</span>}
         </span>
-        <span className="muted tele-window">Window: last 60 minutes</span>
+        <span className="muted tele-window">Window: last {data?.windowMinutes ?? 10} minutes</span>
       </div>
 
       {!data && (
@@ -143,13 +143,13 @@ function ApiPanel({ data }: { data: TelemetryData }) {
     <>
       <div className="tiles">
         <Tile label="Requests per minute" value={a.requestsPerMinute}>
-          <Spark values={a.requests} cls="run" label="Requests per minute over the last hour" />
+          <Spark values={a.requests} cls="run" label={`Requests per minute over the last ${data.windowMinutes} minutes`} />
         </Tile>
         <Tile label="Latency p95" value={a.p95Ms === null ? "–" : `${fmtMs(a.p95Ms)} ms`}>
-          <Spark values={a.p95} cls="ship" label="95th percentile latency over the last hour" />
+          <Spark values={a.p95} cls="ship" label={`95th percentile latency over the last ${data.windowMinutes} minutes`} />
         </Tile>
         <Tile label="Server errors" value={`${a.errorPercent.toFixed(1)} %`} tone={a.errorPercent > 0 ? "warn" : "ok"}>
-          <Spark values={a.errors} cls={a.errorPercent > 0 ? "warn" : "ok"} label="Server errors over the last hour" />
+          <Spark values={a.errors} cls={a.errorPercent > 0 ? "warn" : "ok"} label={`Server errors over the last ${data.windowMinutes} minutes`} />
         </Tile>
         <Tile label="Uptime" value={fmtUptime(data.uptimeSeconds)} hint="since the API last started" />
       </div>
@@ -163,7 +163,7 @@ function ChatPanel({ data }: { data: TelemetryData }) {
   return (
     <>
       <div className="tiles">
-        <Tile label="First token, median" value={c.ttftMedianMs === null ? "–" : `${(c.ttftMedianMs / 1000).toFixed(2)} s`} hint="last hour" />
+        <Tile label="First token, median" value={c.ttftMedianMs === null ? "–" : `${(c.ttftMedianMs / 1000).toFixed(2)} s`} hint={`last ${data.windowMinutes} min`} />
         <Tile label="Speed, median" value={c.tpsMedian === null ? "–" : `${Math.round(c.tpsMedian)} tok/s`} hint="on the GPU" />
         <Tile
           label="Answering now"
@@ -174,9 +174,9 @@ function ChatPanel({ data }: { data: TelemetryData }) {
           }
           hint="slots in use"
         />
-        <Tile label="Turned away" value={c.turnedAway} tone={c.turnedAway > 0 ? "warn" : undefined} hint="busy or over the limit, last hour" />
+        <Tile label="Turned away" value={c.turnedAway} tone={c.turnedAway > 0 ? "warn" : undefined} hint={`busy or over the limit, last ${data.windowMinutes} min`} />
       </div>
-      <SpeedChart answers={c.answers} median={c.tpsMedian} now={Date.parse(data.generatedAt)} />
+      <SpeedChart answers={c.answers} median={c.tpsMedian} now={Date.parse(data.generatedAt)} windowMinutes={data.windowMinutes} />
     </>
   );
 }
@@ -215,7 +215,7 @@ function UtilChart({ data }: { data: GpuData }) {
           {data.gpu?.name ? ` · ${data.gpu.name}` : ""}
         </span>
       </div>
-      <svg className="timeline" viewBox="0 0 800 120" role="img" aria-label={`GPU load over the last 60 minutes, highest value in each minute, from 0 to 100 percent. Peak ${Math.round(peak)} percent.`}>
+      <svg className="timeline" viewBox="0 0 800 120" role="img" aria-label={`GPU load over the last ${values.length} minutes, highest value in each minute, from 0 to 100 percent. Peak ${Math.round(peak)} percent.`}>
         {[0, 25, 50, 75, 100].map((v) => (
           <g key={v}>
             <line className="tele-grid" x1={X0} x2={X1} y1={y(v)} y2={y(v)} />
@@ -227,7 +227,7 @@ function UtilChart({ data }: { data: GpuData }) {
         ))}
         <path className="chart-line run" d={line} />
       </svg>
-      <div className="tele-axis mono"><span>−60 min</span><span>highest in each minute</span><span>now</span></div>
+      <div className="tele-axis mono"><span>−{values.length} min</span><span>highest in each minute</span><span>now</span></div>
     </div>
   );
 }
@@ -262,10 +262,10 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
         </ul>
       </div>
       {empty ? (
-        <p className="note">No requests in the last hour yet.</p>
+        <p className="note">No requests in the last {p50.length} minutes yet.</p>
       ) : (
         <>
-          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Response time over the last 60 minutes, scaled up to ${top} milliseconds`}>
+          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Response time over the last ${p50.length} minutes, scaled up to ${top} milliseconds`}>
             {grid.map((g) => (
               <g key={g.y}>
                 <line className="tele-grid" x1={X0} x2={X1} y1={g.y} y2={g.y} />
@@ -275,7 +275,7 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
             <path className="chart-line ship" d={pathOf(p95, X0, X1, Y0, Y1, 0, top)} />
             <path className="chart-line run" d={pathOf(p50, X0, X1, Y0, Y1, 0, top)} />
           </svg>
-          <div className="tele-axis mono"><span>−60 min</span><span>scale to {top} ms</span><span>now</span></div>
+          <div className="tele-axis mono"><span>−{p50.length} min</span><span>scale to {top} ms</span><span>now</span></div>
         </>
       )}
     </div>
@@ -283,7 +283,7 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
 }
 
 // One dot per answer, placed where it finished. The dashed line is the median; a dot well below it turns amber.
-function SpeedChart({ answers, median, now }: { answers: TelemetryData["chat"]["answers"]; median: number | null; now: number }) {
+function SpeedChart({ answers, median, now, windowMinutes }: { answers: TelemetryData["chat"]["answers"]; median: number | null; now: number; windowMinutes: number }) {
   const X0 = 40;
   const X1 = 790;
   const Y0 = 10;
@@ -291,8 +291,8 @@ function SpeedChart({ answers, median, now }: { answers: TelemetryData["chat"]["
   const top = Math.max(40, Math.ceil((Math.max(0, ...answers.map((a) => a.tps)) * 1.1) / 40) * 40);
   const y = (v: number) => Y1 - ((Y1 - Y0) * v) / top;
   const pts = answers.map((a) => {
-    const minutesAgo = Math.min(60, Math.max(0, (now - Date.parse(a.at)) / 60000));
-    return { ...a, minutesAgo, x: X1 - ((X1 - X0) * minutesAgo) / 60, slow: median !== null && a.tps < median * 0.85 };
+    const minutesAgo = Math.min(windowMinutes, Math.max(0, (now - Date.parse(a.at)) / 60000));
+    return { ...a, minutesAgo, x: X1 - ((X1 - X0) * minutesAgo) / windowMinutes, slow: median !== null && a.tps < median * 0.85 };
   });
   return (
     <div className="panel">
@@ -305,10 +305,10 @@ function SpeedChart({ answers, median, now }: { answers: TelemetryData["chat"]["
         </ul>
       </div>
       {pts.length === 0 ? (
-        <p className="note">No answers in the last hour.</p>
+        <p className="note">No answers in the last {windowMinutes} minutes.</p>
       ) : (
         <>
-          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Tokens per second of each chat answer over the last 60 minutes: ${pts.length} answers, between ${Math.round(Math.min(...pts.map((p) => p.tps)))} and ${Math.round(Math.max(...pts.map((p) => p.tps)))}`}>
+          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Tokens per second of each chat answer over the last ${windowMinutes} minutes: ${pts.length} answers, between ${Math.round(Math.min(...pts.map((p) => p.tps)))} and ${Math.round(Math.max(...pts.map((p) => p.tps)))}`}>
             {[0, 1, 2, 3, 4].map((i) => {
               const v = (top * i) / 4;
               return (
@@ -326,7 +326,7 @@ function SpeedChart({ answers, median, now }: { answers: TelemetryData["chat"]["
               </circle>
             ))}
           </svg>
-          <div className="tele-axis mono"><span>−60 min</span><span>tokens per second, from 0</span><span>now</span></div>
+          <div className="tele-axis mono"><span>−{windowMinutes} min</span><span>tokens per second, from 0</span><span>now</span></div>
         </>
       )}
     </div>
