@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { getGpu, getTelemetry, type GpuData, type TelemetryData } from "../api";
 
 const POLL_MS = 5000;
-const STALE_MS = 15000;
 
 type Series = (number | null)[];
 
@@ -73,38 +72,6 @@ function useTelemetry(target: React.RefObject<HTMLElement | null>, withGpu: bool
   return { data, gpu, failed, ageMs: fetchedAt ? now - fetchedAt : null };
 }
 
-export function Telemetry() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { data, failed, ageMs } = useTelemetry(ref, false);
-  const live = data !== null && !failed && ageMs !== null && ageMs < STALE_MS;
-
-  return (
-    <div ref={ref} className="tele">
-      <p className="lead">What the API container is doing right now: aggregates kept in memory, with no addresses and no message text.</p>
-      <div className="tele-head">
-        <span className="pill">
-          <span className={`dot ${live ? "ok" : data ? "run" : ""}`} aria-hidden="true" />
-          {live ? "live" : data ? "stale" : failed ? "unavailable" : "loading"}
-          {data && ageMs !== null && <span className="mono muted"> updated {Math.max(0, Math.round(ageMs / 1000))} s ago</span>}
-        </span>
-        <span className="muted tele-window">Window: last {data?.windowMinutes ?? 10} minutes</span>
-      </div>
-
-      {!data && (
-        <p className="note">{failed ? "The API did not answer, so there is nothing to show yet." : "Waiting for the first reading."}</p>
-      )}
-
-      {data && (
-        <>
-          <h3 className="sub">API</h3>
-          <ApiPanel data={data} />
-          <p className="note">Kept in memory and reset when the API restarts. Nothing here records who asked or what they asked.</p>
-        </>
-      )}
-    </div>
-  );
-}
-
 // Shown right under the chat window: how the model behind it is doing. Polls on its own, only while on screen.
 export function ChatTelemetry() {
   const ref = useRef<HTMLDivElement>(null);
@@ -133,24 +100,6 @@ function Tile(props: { label: string; value: React.ReactNode; hint?: string; ton
       <div className="tile-label">{props.label}</div>
       <div className={`tile-value mono${props.tone ? ` tone-${props.tone}` : ""}`}>{props.value}</div>
       {props.children ?? (props.hint && <div className="tile-label">{props.hint}</div>)}
-    </div>
-  );
-}
-
-function ApiPanel({ data }: { data: TelemetryData }) {
-  const a = data.api;
-  return (
-    <div className="tiles">
-      <Tile label="Requests per minute" value={a.requestsPerMinute}>
-        <Spark values={a.requests} cls="run" label={`Requests per minute over the last ${data.windowMinutes} minutes`} />
-      </Tile>
-      <Tile label="Avg latency" value={a.avgMs === null ? "–" : `${fmtMs(a.avgMs)} ms`}>
-        <Spark values={a.avg} cls="ship" label={`Average latency per minute over the last ${data.windowMinutes} minutes`} />
-      </Tile>
-      <Tile label="Server errors" value={`${a.errorPercent.toFixed(1)} %`} tone={a.errorPercent > 0 ? "warn" : "ok"}>
-        <Spark values={a.errors} cls={a.errorPercent > 0 ? "warn" : "ok"} label={`Server errors over the last ${data.windowMinutes} minutes`} />
-      </Tile>
-      <Tile label="Uptime" value={fmtUptime(data.uptimeSeconds)} hint="since the API last started" />
     </div>
   );
 }
@@ -229,22 +178,6 @@ function UtilChart({ data }: { data: GpuData }) {
       </svg>
       <div className="tele-axis mono"><span>−{values.length} min</span><span>highest in each minute</span><span>now</span></div>
     </div>
-  );
-}
-
-// Small line under a tile value. A minute with no data (null) breaks the line instead of dropping to zero.
-function Spark({ values, cls, label, max: fixedMax }: { values: Series; cls: string; label: string; max?: number }) {
-  const W = 120;
-  const H = 28;
-  const max = fixedMax ?? Math.max(1, ...values.map((v) => v ?? 0));
-  const d = pathOf(values, 0, W, 2, H - 2, 0, max);
-  return (
-    <svg className="spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
-      <path d={d || `M0 ${H - 2}H${W}`} className={`spark-line ${cls}`} />
-      {loneDots(values, 0, W, 2, H - 2, 0, max).map((p) => (
-        <circle key={p.x} className={`spark-dot ${cls}`} cx={p.x} cy={p.y} r={2} />
-      ))}
-    </svg>
   );
 }
 
@@ -330,15 +263,4 @@ function pathOf(values: Series, x0: number, x1: number, y0: number, y1: number, 
     pen = true;
   });
   return d;
-}
-
-const fmtMs = (ms: number) => (ms >= 100 ? String(Math.round(ms)) : ms.toFixed(1));
-
-function fmtUptime(s: number): string {
-  const d = Math.floor(s / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
 }

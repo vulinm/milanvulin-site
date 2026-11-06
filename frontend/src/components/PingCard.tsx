@@ -78,7 +78,7 @@ export function PingCard() {
   const lostPercent = run.total > 0 ? ((100 * run.lost) / run.total).toFixed(1) : "0.0";
 
   return (
-    <div className={`panel ping${running ? "" : " off"}`}>
+    <div className={`ping${running ? "" : " off"}`}>
       <div className="ping-head">
         <div>
           <h3 className="ping-title">Ping the API from your browser</h3>
