@@ -25,6 +25,11 @@ builder.Services.AddSingleton<Telemetry>();
 // Local language model (optional): see ChatService. The client has no timeout because answers stream.
 builder.Services.AddHttpClient("llm", c => c.Timeout = Timeout.InfiniteTimeSpan);
 builder.Services.AddSingleton<ChatService>();
+
+// GPU readings for the telemetry panel: short timeout, because the sources are on the private network.
+builder.Services.AddHttpClient("gpu", c => c.Timeout = TimeSpan.FromSeconds(3));
+builder.Services.AddSingleton<GpuMonitor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GpuMonitor>());
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -116,6 +121,14 @@ app.MapGet("/api/telemetry", (HttpContext ctx, Telemetry t, ChatService chat) =>
 });
 
 // Chat with the local model. Status says whether the feature is configured and the model answers.
+// GPU card and chat model readings; only meaningful when the chat is configured.
+app.MapGet("/api/telemetry/gpu", (HttpContext ctx, ChatService chat, GpuMonitor gpu) =>
+{
+    if (!chat.Enabled || !gpu.Configured) return Results.NotFound();
+    ctx.Response.Headers.CacheControl = "no-store";
+    return Results.Json(gpu.Snapshot());
+});
+
 app.MapGet("/api/chat/status", async (ChatService chat, CancellationToken ct) => await chat.GetStatusAsync(ct));
 
 app.MapPost("/api/chat", async (HttpContext ctx, ChatRequest? request, ChatService chat, CancellationToken ct) =>

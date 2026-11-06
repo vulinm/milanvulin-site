@@ -82,6 +82,11 @@ public sealed class ChatService(IHttpClientFactory http, IConfiguration cfg, Tel
     }
 
     // At most ParallelAnswers answers run at once, so the GPU never queues up behind visitors.
+    // Where the model server is and which model the chat asks for (the GPU panel looks the same model up).
+    public string? Url => _url;
+
+    public string? Model => _model;
+
     public bool TryAcquire() => _slots.Wait(0);
 
     public int SlotsInUse => ParallelAnswers - _slots.CurrentCount;

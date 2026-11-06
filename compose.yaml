@@ -23,6 +23,8 @@ services:
       # Local language model for the chat panel. Both empty means the chat is switched off.
       LLM_URL: ${LLM_URL:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      # Optional GPU exporter (Prometheus text) for the GPU panel; see docs/local-llm.md. Empty hides the card readings.
+      GPU_METRICS_URL: ${GPU_METRICS_URL:-}
     networks: [app]
 networks:
   app: {}
