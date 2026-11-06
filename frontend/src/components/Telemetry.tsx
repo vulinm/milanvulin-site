@@ -282,7 +282,7 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
   );
 }
 
-// One dot per answer, placed where it finished. The dashed line is the median; a dot well below it turns amber.
+// One dot per answer, placed where it finished. The dashed line is the median; a dot below it turns amber.
 function SpeedChart({ answers, median, now, windowMinutes }: { answers: TelemetryData["chat"]["answers"]; median: number | null; now: number; windowMinutes: number }) {
   const X0 = 40;
   const X1 = 790;
@@ -292,7 +292,7 @@ function SpeedChart({ answers, median, now, windowMinutes }: { answers: Telemetr
   const y = (v: number) => Y1 - ((Y1 - Y0) * v) / top;
   const pts = answers.map((a) => {
     const minutesAgo = Math.min(windowMinutes, Math.max(0, (now - Date.parse(a.at)) / 60000));
-    return { ...a, minutesAgo, x: X1 - ((X1 - X0) * minutesAgo) / windowMinutes, slow: median !== null && a.tps < median * 0.85 };
+    return { ...a, minutesAgo, x: X1 - ((X1 - X0) * minutesAgo) / windowMinutes, slow: median !== null && a.tps < median };
   });
   return (
     <div className="panel">
@@ -300,7 +300,7 @@ function SpeedChart({ answers, median, now, windowMinutes }: { answers: Telemetr
         <strong>Answer speed</strong>
         <ul className="legend tele-legend">
           <li><span className="swatch dot run" />one answer</li>
-          <li><span className="swatch dot slow" />slower than usual</li>
+          <li><span className="swatch dot slow" />below the median</li>
           <li><span className="swatch dash" />median</li>
         </ul>
       </div>
