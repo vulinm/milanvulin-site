@@ -2,7 +2,7 @@
 // container restarts. Nothing here records who asked, what they asked, or which path or query was requested.
 public sealed class Telemetry(BuildInfo info)
 {
-    public const int WindowMinutes = 60;
+    public const int WindowMinutes = 10;
     private const int MaxSamplesPerMinute = 512;
     private const int MaxAnswers = 200;
     private static readonly TimeSpan SnapshotTtl = TimeSpan.FromSeconds(2);
@@ -99,7 +99,7 @@ public sealed class Telemetry(BuildInfo info)
         var recent = requests.Skip(WindowMinutes - 5).Sum();
         var perMinute = recent / Math.Clamp(uptime / 60.0, 1.0, 5.0);
 
-        // Answers of the last hour only, each with the moment it finished (never its text).
+        // Answers of the last ten minutes only, each with the moment it finished (never its text).
         var answers = _answers.Where(a => a.At >= now.AddMinutes(-WindowMinutes)).ToList();
         var ttft = answers.Select(a => (float)a.FirstTokenMs).OrderBy(x => x).ToList();
         var speed = answers.Select(a => (float)a.TokensPerSecond).OrderBy(x => x).ToList();

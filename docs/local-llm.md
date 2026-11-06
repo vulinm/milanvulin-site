@@ -74,7 +74,7 @@ services:
 ```
 Check it from the model network first: `docker run --rm --network stack_llm curlimages/curl -s http://gpu-exporter:9835/metrics | grep -E "utilization_gpu|memory_(used|total)|temperature_gpu|power_draw"`. The API reads `nvidia_smi_utilization_gpu_ratio`, `nvidia_smi_memory_used_bytes`, `nvidia_smi_memory_total_bytes`, `nvidia_smi_temperature_gpu`, `nvidia_smi_power_draw_watts` and the `name` label of `nvidia_smi_gpu_info`; if the names differ in the version you pin, adjust `ParseReading` in `backend/Api/Gpu.cs`. Then set `GPU_METRICS_URL=http://gpu-exporter:9835/metrics` in the app's `.env`. If the exporter is down the card tiles disappear and the rest of the page is unaffected.
 
-Nothing is stored: the API samples every 10 seconds and keeps the last hour in memory. The exporter reports only the card, never processes or other apps.
+Nothing is stored: the API samples every 10 seconds and keeps the last ten minutes in memory. The exporter reports only the card, never processes or other apps.
 
 ## Trying another model
 Models are configuration: pull a different one (`ollama pull <name>`), change `LLM_MODEL`, and the next sync applies it. Compare candidates with the same five questions and look at the tokens per second and first-token time that each answer shows on the page.
