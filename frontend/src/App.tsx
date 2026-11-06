@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getChatStatus, type ChatStatus } from "./api";
 import { Architecture } from "./components/Architecture";
 import { Chat } from "./components/Chat";
+import { NetworkLab } from "./components/NetworkLab";
 import { ShipIt } from "./components/ShipIt";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
@@ -37,6 +38,7 @@ function App() {
           <a href="#ship">Ship it</a>
           <a href="#architecture">Architecture</a>
           <a href="#trace">Trace</a>
+          <a href="#lab">Network lab</a>
           <ThemeToggle />
         </nav>
       </header>
@@ -98,6 +100,15 @@ function App() {
           lead="How your own request reached this page, hop by hop, with a round-trip time measured from your browser."
         >
           <Trace />
+        </Section>
+
+        <Section
+          id="lab"
+          n="04"
+          title="Network lab"
+          lead="Subnet maths the way Azure counts it. Plan how a virtual network's address space splits into subnets, then see the bits behind each one."
+        >
+          <NetworkLab />
         </Section>
       </main>
 
