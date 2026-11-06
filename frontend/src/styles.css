@@ -313,3 +313,15 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
   .tele-ytext { display: none; }
   .tele-axis { padding-left: 0; }
 }
+
+/* Pipeline trend */
+.swatch.bad { background: var(--bad); }
+.trend-bar.build { fill: var(--ship); }
+.trend-bar.pickup { fill: var(--run); }
+.trend-bar.bad { fill: var(--bad); fill-opacity: 0.25; stroke: var(--bad); stroke-width: 1.5; }
+.trend-val, .trend-sha { font-size: 10px; fill: var(--fg); font-family: var(--mono); }
+.trend-sha { font-size: 11px; fill: var(--muted); }
+.trend-sha.bad { fill: var(--bad); }
+@media (max-width: 40rem) {
+  .trend-val, .trend-sha { display: none; }
+}
