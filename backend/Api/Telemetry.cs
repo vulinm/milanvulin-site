@@ -4,7 +4,7 @@ public sealed class Telemetry(BuildInfo info)
 {
     public const int WindowMinutes = 60;
     private const int MaxSamplesPerMinute = 512;
-    private const int KeptAnswers = 20;
+    private const int MaxAnswers = 200;
     private static readonly TimeSpan SnapshotTtl = TimeSpan.FromSeconds(2);
 
     private readonly object _gate = new();
@@ -46,8 +46,9 @@ public sealed class Telemetry(BuildInfo info)
         if (firstTokenMs <= 0 || tokensPerSecond <= 0) return;
         lock (_gate)
         {
-            _answers.Enqueue(new ChatAnswer(firstTokenMs, tokensPerSecond));
-            while (_answers.Count > KeptAnswers) _answers.Dequeue();
+            var now = DateTimeOffset.UtcNow;
+            _answers.Enqueue(new ChatAnswer(now, firstTokenMs, tokensPerSecond));
+            while (_answers.Count > MaxAnswers || _answers.Peek().At < now.AddMinutes(-WindowMinutes)) _answers.Dequeue();
         }
     }
 
@@ -98,7 +99,8 @@ public sealed class Telemetry(BuildInfo info)
         var recent = requests.Skip(WindowMinutes - 5).Sum();
         var perMinute = recent / Math.Clamp(uptime / 60.0, 1.0, 5.0);
 
-        var answers = _answers.ToList();
+        // Answers of the last hour only, each with the moment it finished (never its text).
+        var answers = _answers.Where(a => a.At >= now.AddMinutes(-WindowMinutes)).ToList();
         var ttft = answers.Select(a => (float)a.FirstTokenMs).OrderBy(x => x).ToList();
         var speed = answers.Select(a => (float)a.TokensPerSecond).OrderBy(x => x).ToList();
 
@@ -127,7 +129,7 @@ public sealed class Telemetry(BuildInfo info)
                 turnedAway,
                 ttftMedianMs = ttft.Count > 0 ? Round(Percentile(ttft, 0.5)) : (double?)null,
                 tpsMedian = speed.Count > 0 ? Round(Percentile(speed, 0.5)) : (double?)null,
-                answers = answers.Select(a => new { ttftMs = a.FirstTokenMs, tps = Math.Round(a.TokensPerSecond, 1) }),
+                answers = answers.Select(a => new { at = a.At, ttftMs = a.FirstTokenMs, tps = Math.Round(a.TokensPerSecond, 1) }),
             },
         };
     }
@@ -156,5 +158,5 @@ public sealed class Telemetry(BuildInfo info)
         }
     }
 
-    private sealed record ChatAnswer(long FirstTokenMs, double TokensPerSecond);
+    private sealed record ChatAnswer(DateTimeOffset At, long FirstTokenMs, double TokensPerSecond);
 }

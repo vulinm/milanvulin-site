@@ -114,10 +114,10 @@ export function ChatTelemetry() {
         <>
           <h3 className="sub">Live numbers</h3>
           <ChatPanel data={data} />
-          {gpu && (gpu.gpu || gpu.model) && (
+          {gpu?.gpu && gpu.utilization.some((v) => v !== null) && (
             <>
               <h3 className="sub">GPU</h3>
-              <GpuPanel data={gpu} />
+              <UtilChart data={gpu} />
             </>
           )}
         </>
@@ -163,7 +163,7 @@ function ChatPanel({ data }: { data: TelemetryData }) {
   return (
     <>
       <div className="tiles">
-        <Tile label="First token, median" value={c.ttftMedianMs === null ? "–" : `${(c.ttftMedianMs / 1000).toFixed(2)} s`} hint="last 20 answers" />
+        <Tile label="First token, median" value={c.ttftMedianMs === null ? "–" : `${(c.ttftMedianMs / 1000).toFixed(2)} s`} hint="last hour" />
         <Tile label="Speed, median" value={c.tpsMedian === null ? "–" : `${Math.round(c.tpsMedian)} tok/s`} hint="on the GPU" />
         <Tile
           label="Answering now"
@@ -176,74 +176,58 @@ function ChatPanel({ data }: { data: TelemetryData }) {
         />
         <Tile label="Turned away" value={c.turnedAway} tone={c.turnedAway > 0 ? "warn" : undefined} hint="busy or over the limit, last hour" />
       </div>
-      <SpeedBars answers={c.answers} median={c.tpsMedian} />
+      <SpeedChart answers={c.answers} median={c.tpsMedian} now={Date.parse(data.generatedAt)} />
     </>
   );
 }
 
-function GpuPanel({ data }: { data: GpuData }) {
-  const { gpu, model } = data;
-  const gb = (mb: number) => (mb / 1024).toFixed(1);
-  const hasHistory = data.utilization.some((v) => v !== null);
-  return (
-    <>
-      {gpu && (
-        <div className="tiles">
-          <>
-            <Tile label="GPU load" value={`${gpu.utilizationPercent} %`}>
-              <Spark values={data.utilization} cls="run" label="GPU load over the last hour, highest value per minute" max={100} />
-            </Tile>
-            <Tile
-              label="Video memory"
-              value={`${gb(gpu.memoryUsedMb)} GB`}
-              hint={gpu.memoryTotalMb ? `of ${gb(gpu.memoryTotalMb)} GB` : undefined}
-            />
-            {gpu.temperatureC !== null && <Tile label="Temperature" value={`${gpu.temperatureC} °C`} />}
-            {gpu.powerW !== null && <Tile label="Power draw" value={`${gpu.powerW} W`} />}
-          </>
-        </div>
-      )}
-      {model && (
-        <div className="tiles">
-          <>
-            <Tile label="Model in video memory" value={`${gb(model.vramMb)} GB`} hint={model.name} />
-            <Tile
-              label="Running on the GPU"
-              value={`${model.onGpuPercent} %`}
-              tone={model.onGpuPercent >= 100 ? "ok" : "warn"}
-              hint={model.onGpuPercent >= 100 ? "all of the model" : "the rest runs on the CPU"}
-            />
-          </>
-        </div>
-      )}
-      {gpu && hasHistory && <UtilChart values={data.utilization} name={gpu.name} />}
-    </>
-  );
-}
-
-function UtilChart({ values, name }: { values: Series; name: string | null }) {
+function UtilChart({ data }: { data: GpuData }) {
   const X0 = 40;
   const X1 = 790;
   const Y0 = 10;
   const Y1 = 110;
-  const grid = [0, 50, 100];
+  const values = data.utilization;
   const y = (v: number) => Y1 - ((Y1 - Y0) * v) / 100;
+  const known = values.filter((v): v is number => v !== null);
+  const peak = Math.max(...known);
+  const line = pathOf(values, X0, X1, Y0, Y1, 0, 100);
+  // Fill under the line only where the line is continuous: one closed shape per run of minutes with data.
+  const areas: string[] = [];
+  let run: { x: number; y: number }[] = [];
+  const flush = () => {
+    if (run.length > 1) {
+      areas.push(`M${run[0].x.toFixed(1)} ${Y1}` + run.map((p) => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join("") + `L${run[run.length - 1].x.toFixed(1)} ${Y1}Z`);
+    }
+    run = [];
+  };
+  values.forEach((v, i) => {
+    if (v === null) return flush();
+    run.push({ x: X0 + ((X1 - X0) * i) / (values.length - 1), y: y(v) });
+  });
+  flush();
+  const last = data.gpu?.utilizationPercent;
   return (
     <div className="panel">
       <div className="panel-head">
         <strong>GPU load</strong>
-        <span className="muted tele-sub">highest value in each minute{name ? `, ${name}` : ""}</span>
+        <span className="muted tele-sub">
+          {last !== undefined && <>now <span className="mono">{last} %</span> · </>}peak <span className="mono">{Math.round(peak)} %</span>
+          {data.gpu?.name ? ` · ${data.gpu.name}` : ""}
+        </span>
       </div>
-      <svg className="timeline" viewBox="0 0 800 120" role="img" aria-label="GPU load over the last 60 minutes, highest value in each minute, from 0 to 100 percent">
-        {grid.map((v) => (
+      <svg className="timeline" viewBox="0 0 800 120" role="img" aria-label={`GPU load over the last 60 minutes, highest value in each minute, from 0 to 100 percent. Peak ${Math.round(peak)} percent.`}>
+        {[0, 25, 50, 75, 100].map((v) => (
           <g key={v}>
             <line className="tele-grid" x1={X0} x2={X1} y1={y(v)} y2={y(v)} />
             <text className="tele-ytext" x={X0 - 8} y={y(v) + 3} textAnchor="end">{v} %</text>
           </g>
         ))}
-        <path className="chart-line run" d={pathOf(values, X0, X1, Y0, Y1, 0, 100)} />
+        {areas.map((d) => (
+          <path key={d} className="area" d={d} />
+        ))}
+        <path className="chart-line run" d={line} />
       </svg>
-      <div className="tele-axis mono"><span>−60 min</span><span>0 to 100 %</span><span>now</span></div>
+      <div className="tele-axis mono"><span>−60 min</span><span>highest in each minute</span><span>now</span></div>
     </div>
   );
 }
@@ -298,33 +282,53 @@ function ResponseChart({ p50, p95, empty }: { p50: Series; p95: Series; empty: b
   );
 }
 
-function SpeedBars({ answers, median }: { answers: { ttftMs: number; tps: number }[]; median: number | null }) {
-  if (answers.length === 0) {
-    return (
-      <div className="panel">
-        <strong>Speed of the last answers</strong>
-        <p className="note">No answers since the API last started.</p>
-      </div>
-    );
-  }
-  const values = answers.map((a) => a.tps);
-  const base = Math.max(0, Math.floor((Math.min(...values) * 0.9) / 10) * 10);
-  const top = Math.max(...values);
-  const slot = 28;
-  const H = 56;
+// One dot per answer, placed where it finished. The dashed line is the median; a dot well below it turns amber.
+function SpeedChart({ answers, median, now }: { answers: TelemetryData["chat"]["answers"]; median: number | null; now: number }) {
+  const X0 = 40;
+  const X1 = 790;
+  const Y0 = 10;
+  const Y1 = 120;
+  const top = Math.max(40, Math.ceil((Math.max(0, ...answers.map((a) => a.tps)) * 1.1) / 40) * 40);
+  const y = (v: number) => Y1 - ((Y1 - Y0) * v) / top;
+  const pts = answers.map((a) => {
+    const minutesAgo = Math.min(60, Math.max(0, (now - Date.parse(a.at)) / 60000));
+    return { ...a, minutesAgo, x: X1 - ((X1 - X0) * minutesAgo) / 60, slow: median !== null && a.tps < median * 0.85 };
+  });
   return (
     <div className="panel">
       <div className="panel-head">
-        <strong>Speed of the last {answers.length} answers</strong>
-        <span className="muted tele-sub">tokens per second, axis starts at {base}</span>
+        <strong>Answer speed</strong>
+        <ul className="legend tele-legend">
+          <li><span className="swatch dot run" />one answer</li>
+          <li><span className="swatch dot slow" />slower than usual</li>
+          <li><span className="swatch dash" />median</li>
+        </ul>
       </div>
-      <svg className="timeline" viewBox={`0 0 ${slot * 20 - 8} ${H}`} role="img" aria-label={`Tokens per second for the last ${answers.length} answers, between ${Math.round(Math.min(...values))} and ${Math.round(top)}`}>
-        {values.map((v, i) => {
-          const h = 6 + ((v - base) / (top - base || 1)) * (H - 12);
-          const slow = median !== null && v < median * 0.85;
-          return <rect key={i} className={slow ? "bar slow" : "bar"} x={(20 - values.length + i) * slot} y={H - h} width={20} height={h} rx={2} />;
-        })}
-      </svg>
+      {pts.length === 0 ? (
+        <p className="note">No answers in the last hour.</p>
+      ) : (
+        <>
+          <svg className="timeline" viewBox="0 0 800 130" role="img" aria-label={`Tokens per second of each chat answer over the last 60 minutes: ${pts.length} answers, between ${Math.round(Math.min(...pts.map((p) => p.tps)))} and ${Math.round(Math.max(...pts.map((p) => p.tps)))}`}>
+            {[0, 1, 2, 3, 4].map((i) => {
+              const v = (top * i) / 4;
+              return (
+                <g key={i}>
+                  <line className="tele-grid" x1={X0} x2={X1} y1={y(v)} y2={y(v)} />
+                  <text className="tele-ytext" x={X0 - 8} y={y(v) + 3} textAnchor="end">{v}</text>
+                </g>
+              );
+            })}
+            {median !== null && <line className="median" x1={X0} x2={X1} y1={y(median)} y2={y(median)} />}
+            {pts.length > 1 && <path className="chart-line run faint" d={pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)} ${y(p.tps).toFixed(1)}`).join("")} />}
+            {pts.map((p) => (
+              <circle key={p.at} className={p.slow ? "pt slow" : "pt"} cx={p.x} cy={y(p.tps)} r={p.slow ? 5 : 4}>
+                <title>{`${p.tps} tok/s, first token ${(p.ttftMs / 1000).toFixed(2)} s, ${Math.round(p.minutesAgo)} min ago`}</title>
+              </circle>
+            ))}
+          </svg>
+          <div className="tele-axis mono"><span>−60 min</span><span>tokens per second, from 0</span><span>now</span></div>
+        </>
+      )}
     </div>
   );
 }

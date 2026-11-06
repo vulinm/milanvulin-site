@@ -60,7 +60,7 @@ export type TelemetryData = {
     turnedAway: number;
     ttftMedianMs: number | null;
     tpsMedian: number | null;
-    answers: { ttftMs: number; tps: number }[];
+    answers: { at: string; ttftMs: number; tps: number }[];
   };
 };
 
