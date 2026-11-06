@@ -66,6 +66,23 @@ export type TelemetryData = {
 
 export const getTelemetry = () => get<TelemetryData>("/api/telemetry");
 
+export type GpuData = {
+  generatedAt: string;
+  gpu: {
+    name: string | null;
+    utilizationPercent: number;
+    memoryUsedMb: number;
+    memoryTotalMb: number | null;
+    temperatureC: number | null;
+    powerW: number | null;
+  } | null;
+  model: { name: string; vramMb: number; sizeMb: number; onGpuPercent: number; contextLength: number | null } | null;
+  utilization: (number | null)[];
+  memoryMb: (number | null)[];
+};
+
+export const getGpu = () => get<GpuData>("/api/telemetry/gpu");
+
 export class ChatError extends Error {
   status: number;
   code: string;

@@ -54,6 +54,28 @@ LLM_MODEL=gemma4:e4b
 ```
 Keep any other settings already there. If `COMPOSE_FILE` already lists files, append `:compose.llm.yaml`. The next sync recreates the API on the `stack_llm` network. To switch the chat off again, empty `LLM_URL`.
 
+## GPU panel (optional)
+The Live telemetry section has a GPU panel next to the chat numbers. It has two sources, both read by the API on the private network, and each works without the other:
+- **The model server.** `GET /api/ps` on `LLM_URL` says whether the chat model is loaded in video memory and how much of it sits on the GPU. This needs nothing extra. Only the chat model is read; any other model on the server is ignored.
+- **A GPU exporter** for load, video memory, temperature and power of the card. Add it to `~/stack/compose.yaml` next to the model service, on the same private network and without `ports:`:
+
+```yaml
+services:
+  gpu-exporter:
+    image: utkuozdemir/nvidia_gpu_exporter:<pinned version>
+    restart: unless-stopped
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: utility
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+    networks: [llm]
+```
+Check it from the model network first: `docker run --rm --network stack_llm curlimages/curl -s http://gpu-exporter:9835/metrics | grep -E "utilization_gpu|memory_(used|total)|temperature_gpu|power_draw"`. The API reads `nvidia_smi_utilization_gpu_ratio`, `nvidia_smi_memory_used_bytes`, `nvidia_smi_memory_total_bytes`, `nvidia_smi_temperature_gpu`, `nvidia_smi_power_draw_watts` and the `name` label of `nvidia_smi_gpu_info`; if the names differ in the version you pin, adjust `ParseReading` in `backend/Api/Gpu.cs`. Then set `GPU_METRICS_URL=http://gpu-exporter:9835/metrics` in the app's `.env`. If the exporter is down the card tiles disappear and the rest of the page is unaffected.
+
+Nothing is stored: the API samples every 10 seconds and keeps the last hour in memory. The exporter reports only the card, never processes or other apps.
+
 ## Trying another model
 Models are configuration: pull a different one (`ollama pull <name>`), change `LLM_MODEL`, and the next sync applies it. Compare candidates with the same five questions and look at the tokens per second and first-token time that each answer shows on the page.
 
