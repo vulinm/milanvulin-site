@@ -342,3 +342,26 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
 .spark-dot.warn { fill: var(--warn); }
 
 #ship .tele { margin-top: 1.75rem; }
+
+/* Browser ping */
+.ping { margin-top: 1.75rem; padding: 1rem 1rem 0.5rem; }
+.ping-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.ping-title { font-size: 1rem; margin: 0; }
+.ping-lead { font-size: 0.85rem; color: var(--muted); margin: 0.15rem 0 0; max-width: 34rem; }
+.ping-controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.ping-note { margin: 0.25rem 0 0.5rem; }
+button.switch { display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.9rem 0.3rem 0.45rem; border-radius: 999px; font-size: 0.85rem; }
+button.switch.on { background: var(--run-bg); color: var(--run); border-color: var(--run); }
+.switch-track { position: relative; width: 2.4rem; height: 1.25rem; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); display: block; }
+.switch.on .switch-track { border-color: var(--run); }
+.switch-knob { position: absolute; top: 0.15rem; left: 0.15rem; width: 0.85rem; height: 0.85rem; border-radius: 50%; background: var(--muted); display: block; transition: left 0.12s; }
+.switch.on .switch-knob { left: 1.2rem; background: var(--run); }
+.ping.off .tile-value { color: var(--muted); }
+.ping.off .ping-chart { opacity: 0.5; }
+.ping-bar { fill: var(--run); }
+.ping-bar.slow { fill: var(--warn); }
+.ping-lost { fill: var(--bad); fill-opacity: 0.25; stroke: var(--bad); stroke-width: 1; }
+.swatch.slow-sw { background: var(--warn); }
+.swatch.bad-outline { background: none; border: 1px solid var(--bad); }
+.ping-legend { padding: 0; margin: 0.35rem 0 0.5rem; color: var(--muted); font-size: 0.8rem; }
+@media (prefers-reduced-motion: reduce) { .switch-knob { transition: none; } }

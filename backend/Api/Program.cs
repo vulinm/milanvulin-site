@@ -35,9 +35,21 @@ builder.Services.AddRateLimiter(o =>
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.OnRejected = (context, _) =>
     {
-        context.HttpContext.RequestServices.GetRequiredService<Telemetry>().TurnedAway();
+        // Only the chat counts as turning a visitor away; the browser ping has its own, silent limit.
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/chat"))
+            context.HttpContext.RequestServices.GetRequiredService<Telemetry>().TurnedAway();
         return ValueTask.CompletedTask;
     };
+    // The ping card in the browser sends one request a second; the limit leaves room for a second tab.
+    o.AddPolicy("ping", ctx => RateLimitPartition.GetSlidingWindowLimiter(
+        ctx.Request.Headers["CF-Connecting-IP"].ToString() is { Length: > 0 } ip ? ip : "unknown",
+        _ => new SlidingWindowRateLimiterOptions
+        {
+            PermitLimit = 150,
+            Window = TimeSpan.FromMinutes(1),
+            SegmentsPerWindow = 4,
+            QueueLimit = 0,
+        }));
     // Per visitor: Cloudflare puts the real address in this header (the API is only reachable through it).
     o.AddPolicy("chat", ctx => RateLimitPartition.GetSlidingWindowLimiter(
         ctx.Request.Headers["CF-Connecting-IP"].ToString() is { Length: > 0 } ip ? ip : "unknown",
@@ -59,7 +71,7 @@ var telemetry = app.Services.GetRequiredService<Telemetry>();
 app.Use(async (ctx, next) =>
 {
     var path = ctx.Request.Path;
-    if (path.StartsWithSegments("/healthz") || path.StartsWithSegments("/api/telemetry") || path.StartsWithSegments("/api/chat"))
+    if (path.StartsWithSegments("/healthz") || path.StartsWithSegments("/api/telemetry") || path.StartsWithSegments("/api/chat") || path.StartsWithSegments("/api/ping"))
     {
         await next(ctx);
         return;
@@ -79,6 +91,14 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseRateLimiter();
+
+// Answered by the browser ping card in the page: an empty reply, so the time measured is the trip itself.
+// Left out of the request statistics (see the middleware above), otherwise every open tab would inflate them.
+app.MapGet("/api/ping", (HttpContext ctx) =>
+{
+    ctx.Response.Headers.CacheControl = "no-store";
+    return Results.NoContent();
+}).RequireRateLimiting("ping");
 
 // Internal only: the web container forwards just /api/*, so this is never reachable from outside.
 app.MapGet("/healthz", () => Results.Ok(new { status = "ok" }));
