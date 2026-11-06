@@ -341,10 +341,9 @@ button.link { border: 0; background: none; padding: 0; color: var(--run); text-d
 .spark-dot.ok { fill: var(--ok); }
 .spark-dot.warn { fill: var(--warn); }
 
-#ship .tele { margin-top: 1.75rem; }
 
 /* Browser ping */
-.ping { margin-top: 1.75rem; padding: 1rem 1rem 0.5rem; }
+.ping { margin: 1.25rem 0 2rem; }
 .ping-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .ping-title { font-size: 1rem; margin: 0; }
 .ping-lead { font-size: 0.85rem; color: var(--muted); margin: 0.15rem 0 0; max-width: 34rem; }

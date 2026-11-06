@@ -6,7 +6,7 @@ import { Chat } from "./components/Chat";
 import { PingCard } from "./components/PingCard";
 import { NetworkLab } from "./components/NetworkLab";
 import { ShipIt } from "./components/ShipIt";
-import { ChatTelemetry, Telemetry } from "./components/Telemetry";
+import { ChatTelemetry } from "./components/Telemetry";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
 
@@ -85,8 +85,6 @@ function App() {
           lead="How long this exact version took to get from a push to production, measured from the real build and the real container start."
         >
           <ShipIt />
-          <PingCard />
-          <Telemetry />
         </Section>
 
         <Section
@@ -113,6 +111,7 @@ function App() {
           title="Network lab"
           lead="Subnet maths the way Azure counts it. Plan how a virtual network's address space splits into subnets, then see the bits behind each one."
         >
+          <PingCard />
           <NetworkLab />
         </Section>
       </main>
