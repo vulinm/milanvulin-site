@@ -45,13 +45,11 @@ export type TelemetryData = {
   uptimeSeconds: number;
   api: {
     requestsPerMinute: number;
-    p50Ms: number | null;
-    p95Ms: number | null;
+    avgMs: number | null;
     errorPercent: number;
     requests: number[];
     errors: number[];
-    p50: (number | null)[];
-    p95: (number | null)[];
+    avg: (number | null)[];
   };
   chat: {
     enabled: boolean;
