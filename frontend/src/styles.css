@@ -371,3 +371,4 @@ button.switch.on { background: var(--run-bg); color: var(--run); border-color: v
 .swatch.bad-outline { background: none; border: 1px solid var(--bad); }
 .ping-legend { padding: 0; margin: 0.35rem 0 0.5rem; color: var(--muted); font-size: 0.8rem; }
 @media (prefers-reduced-motion: reduce) { .switch-knob { transition: none; } }
+.lab-title { font-size: 1.25rem; margin: 1.5rem 0 0.5rem; }
