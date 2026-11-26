@@ -3,16 +3,33 @@ import { PRESETS } from "../lab/presets";
 import { CidrPlanner } from "./CidrPlanner";
 import { NsgEvaluator } from "./NsgEvaluator";
 
-type Tab = { id: string; label: string };
+type Tab = { id: string; label: string; lead: string };
 
 // More tabs (DNS and TLS steppers) are added here as they are built.
 const TABS: Tab[] = [
-  { id: "cidr", label: "CIDR planner" },
-  { id: "nsg", label: "NSG evaluator" },
+  {
+    id: "cidr",
+    label: "CIDR planner",
+    lead: "Subnet maths the way Azure counts it. Plan how a virtual network's address space splits into subnets, then see the bits behind each one.",
+  },
+  {
+    id: "nsg",
+    label: "NSG evaluator",
+    lead: "Network security group rules the way Azure evaluates them. Write rules with priorities, then test a packet to see which rule decides its fate.",
+  },
 ];
 
 // Starts on the first example, so the planner opens with rows and address space that belong together.
 const DEFAULT_VNET = PRESETS[0].vnet;
+
+function LabIntro({ tab }: { tab: Tab }) {
+  return (
+    <>
+      <h3 className="lab-title">{tab.label}</h3>
+      <p className="lead">{tab.lead}</p>
+    </>
+  );
+}
 
 export function NetworkLab() {
   const [tab, setTab] = useState(TABS[0].id);
@@ -54,9 +71,11 @@ export function NetworkLab() {
       </div>
       {/* Every panel stays mounted and is only hidden, so what you typed in a tab is still there when you come back. */}
       <div role="tabpanel" id="lab-panel-cidr" aria-labelledby="lab-tab-cidr" hidden={tab !== "cidr"}>
+        <LabIntro tab={TABS.find((x) => x.id === "cidr")!} />
         <CidrPlanner vnet={vnet} onVnet={setVnet} />
       </div>
       <div role="tabpanel" id="lab-panel-nsg" aria-labelledby="lab-tab-nsg" hidden={tab !== "nsg"}>
+        <LabIntro tab={TABS.find((x) => x.id === "nsg")!} />
         <NsgEvaluator vnet={vnet} onVnet={setVnet} />
       </div>
     </div>

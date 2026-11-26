@@ -10,12 +10,12 @@ import { ChatTelemetry } from "./components/Telemetry";
 import { Trace } from "./components/Trace";
 import { profile } from "./content";
 
-function Section(props: { id: string; n: string; title: string; lead: string; children: React.ReactNode }) {
+function Section(props: { id: string; n: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section id={props.id} className="section">
       <div className="kicker mono">{props.n}</div>
       <h2>{props.title}</h2>
-      <p className="lead">{props.lead}</p>
+      {props.lead && <p className="lead">{props.lead}</p>}
       {props.children}
     </section>
   );
@@ -109,7 +109,6 @@ function App() {
           id="lab"
           n="04"
           title="Network lab"
-          lead="Subnet maths the way Azure counts it. Plan how a virtual network's address space splits into subnets, then see the bits behind each one."
         >
           <PingCard />
           <NetworkLab />
